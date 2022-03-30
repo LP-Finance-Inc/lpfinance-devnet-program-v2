@@ -1,0 +1,12 @@
+[programs.devnet]
+lpfinance_accounts = "CaBy6Mh16bVQpnqY7Crt13hU4Zyv8QbW55GfTvVFwxYh"
+
+[registry]
+url = "https://anchor.projectserum.com"
+
+[provider]
+cluster = "devnet"
+wallet = "/Users/kk/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
