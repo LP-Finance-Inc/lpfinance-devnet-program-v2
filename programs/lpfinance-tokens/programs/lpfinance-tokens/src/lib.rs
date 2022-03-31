@@ -7,10 +7,12 @@ use anchor_spl::{
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 const LP_TOKEN_DECIMALS: u8 = 9;
-const PREFIX: &str = "lpfinance";
-const INITIAL_SUPPLY: u64 = 500000000;
-const DAY_IN_SECONDS: i64 = 86400; 
+const PREFIX: &str = "lptokens";
 
+// DAO governance token
+const INITIAL_SUPPLY: u64 = 500000000; // 500,000,000
+
+const DAY_IN_SECONDS: i64 = 86400; 
 // Reward Rate => 0.00809%
 // so need to divide with 10000
 const DAILY_REWARD_RATE: u64 = 809;
@@ -270,7 +272,6 @@ pub mod lpfinance_tokens {
 
 
 #[derive(Accounts)]
-#[instruction(program_name: String)]
 pub struct Initialize<'info> {
     // Token program owner
     #[account(mut)]
@@ -313,6 +314,15 @@ pub struct Initialize<'info> {
         payer = authority
     )]
     pub lpbtc_mint: Box<Account<'info, Mint>>,
+
+    #[account(init,
+        mint::decimals = LP_TOKEN_DECIMALS,
+        mint::authority = state_account,
+        seeds = [PREFIX.as_bytes(), b"lpdao_mint".as_ref()],
+        bump,
+        payer = authority
+    )]
+    pub lpdao_mint: Box<Account<'info, Mint>>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
@@ -428,6 +438,7 @@ pub struct Config {
     pub lpbtc_mint: Pubkey,
     pub lpusd_mint: Pubkey,
     pub lpsol_mint: Pubkey,
+    pub lpdao_mint: Pubkey,
     pub last_mint_timestamp: i64
 }
 
@@ -436,7 +447,8 @@ pub struct ProgramBumps {
     pub state_account: u8,
     pub lpbtc_mint: u8,
     pub lpsol_mint: u8,
-    pub lpusd_mint: u8
+    pub lpusd_mint: u8,
+    pub lpdao_mint: u8
 }
 
 #[error_code]
