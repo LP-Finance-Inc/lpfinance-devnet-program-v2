@@ -678,6 +678,17 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
+ "lpfinance-tokens",
+ "solana-program",
+ "spl-token",
+]
+
+[[package]]
+name = "lpfinance-tokens"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
  "solana-program",
  "spl-token",
 ]

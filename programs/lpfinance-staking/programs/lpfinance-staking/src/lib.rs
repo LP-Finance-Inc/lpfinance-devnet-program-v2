@@ -4,6 +4,10 @@ use anchor_spl::{
     token::{self, Mint, Transfer, Token, TokenAccount }
 };
 
+use lpfinance_tokens::cpi::accounts::MintLpToken;
+use lpfinance_tokens::program::LpfinanceTokens;
+use lpfinance_tokens::{self};
+
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 const PREFIX: &str = "lpfi-staking";
@@ -124,6 +128,25 @@ pub mod lpfinance_staking {
         }
 
         let total_supply = ctx.accounts.lpfi_mint.supply;
+        
+        // MINT TOkENS
+        let mint_amount = (DAILY_REWARD_RATE - DENOMINATOR) * total_supply/ DENOMINATOR;
+
+        let cpi_program = ctx.accounts.lptoken_program.to_account_info();
+        let cpi_accounts = MintLpToken {
+            signer: ctx.accounts.config.to_account_info(),
+            state_account: ctx.accounts.lptoken_state.to_account_info(),
+            config: ctx.accounts.lptoken_config.to_account_info(),
+            user_lptoken: ctx.accounts.pool_lpfi.to_account_info(),
+            lptoken_mint: ctx.accounts.lpfi_mint.to_account_info(),
+            system_program: ctx.accounts.system_program.to_account_info(),
+            token_program: ctx.accounts.token_program.to_account_info(),
+            rent: ctx.accounts.rent.to_account_info()
+        };
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        lpfinance_tokens::cpi::mint_lptoken(cpi_ctx, mint_amount)?;
+        // END MINT
+        
 
         let config = &mut ctx.accounts.config;
         let total_staked = config.total_staked;
@@ -138,6 +161,7 @@ pub mod lpfinance_staking {
             return Err(ErrorCode::TooOftenMint.into());
         }
         config.last_mint_timestamp = clock.unix_timestamp;
+
 
         // (current_rate / denominator) * ((daily_reward / denominator) * (total_supply / total_staked))
         let numerator : u128 = config.reward_rate as u128 *  total_supply as u128 * (DAILY_REWARD_RATE - DENOMINATOR) as u128;
@@ -285,7 +309,13 @@ pub struct DailyReward<'info> {
 
     #[account(mut)]
     pub lpfi_mint: Account<'info, Mint>,
+
+    #[account(mut)]
+    pub lptoken_state: Account<'info, lpfinance_tokens::TokenStateAccount>,
+    #[account(mut)]
+    pub lptoken_config: Account<'info, lpfinance_tokens::Config>,
     // Programs and Sysvars
+    pub lptoken_program: Program<'info, LpfinanceTokens>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>

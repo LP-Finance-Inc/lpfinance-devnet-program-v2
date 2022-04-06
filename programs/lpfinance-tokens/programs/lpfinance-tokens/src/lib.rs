@@ -15,8 +15,8 @@ const INITIAL_SUPPLY: u64 = 500000000; // 500,000,000
 const DAY_IN_SECONDS: i64 = 86400; 
 // Reward Rate => 0.00809%
 // so need to divide with 10000
-const DAILY_REWARD_RATE: u64 = 809;
-const DENOMINATOR: u64 = 100000 * 100;
+const DAILY_REWARD_RATE: u64 = 10000809;
+const DENOMINATOR: u64 =       10000000;
 
 #[program]
 pub mod lpfinance_tokens {
@@ -37,9 +37,35 @@ pub mod lpfinance_tokens {
         config.state_account = ctx.accounts.state_account.key();
         config.last_mint_timestamp = 0;
 
+        // INITIAL SUPPLY
+        let (mint_token_authority, mint_token_authority_bump) = 
+        Pubkey::find_program_address(&[PREFIX.as_bytes()], ctx.program_id);
+    
+        if mint_token_authority != ctx.accounts.state_account.key() {
+            return Err(ErrorCode::InvalidOwner.into());
+        }
+
+        // Mint
+        let seeds = &[
+            PREFIX.as_bytes(),
+            &[mint_token_authority_bump]
+        ];
+        let signer = &[&seeds[..]];
+
+        let cpi_accounts = MintTo {
+            mint: ctx.accounts.lpdao_mint.to_account_info(),
+            to: ctx.accounts.user_daotoken.to_account_info(),
+            authority: ctx.accounts.state_account.to_account_info(),
+        };
+
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+
+        token::mint_to(cpi_ctx, INITIAL_SUPPLY * 1000000000)?;
+
         Ok(())
     }
-
+    // Let CBS to mint tokens
     pub fn mint_lptoken(
         ctx: Context<MintLpToken>,
         amount: u64
@@ -47,7 +73,9 @@ pub mod lpfinance_tokens {
         if amount == 0 {
             return Err(ErrorCode::InvalidAmount.into());
         }
-
+        if ctx.accounts.config.cbs_account != ctx.accounts.signer.key() && ctx.accounts.config.staking_account != ctx.accounts.signer.key() {
+            return Err(ErrorCode::InvalidOwner.into());
+        }
         let (mint_token_authority, mint_token_authority_bump) = 
             Pubkey::find_program_address(&[PREFIX.as_bytes()], ctx.program_id);
         
@@ -64,7 +92,7 @@ pub mod lpfinance_tokens {
 
         let cpi_accounts = MintTo {
             mint: ctx.accounts.lptoken_mint.to_account_info(),
-            to: ctx.accounts.cbs_lptoken.to_account_info(),
+            to: ctx.accounts.user_lptoken.to_account_info(),
             authority: ctx.accounts.state_account.to_account_info(),
         };
 
@@ -75,6 +103,7 @@ pub mod lpfinance_tokens {
         Ok(())
     }
 
+    // Let CBS to burn tokens
     pub fn burn_lptoken(
         ctx: Context<BurnLpToken>,
         amount: u64
@@ -110,6 +139,7 @@ pub mod lpfinance_tokens {
         Ok(())
     }
 
+    // Owner can mint token
     pub fn owner_mint_lptoken(
         ctx: Context<OwnerLpToken>,
         amount: u64
@@ -177,21 +207,35 @@ pub mod lpfinance_tokens {
     }
 
     pub fn update_cbs_account(
-        ctx: Context<UpdateStateAccount>,
+        ctx: Context<UpdateConfigAccount>,
         new_cbs: Pubkey
     ) -> Result<()> {
-        let state_account = &mut ctx.accounts.state_account;
+        let config = &mut ctx.accounts.config;
         
-        if state_account.owner != ctx.accounts.owner.key() {
+        if ctx.accounts.state_account.owner != ctx.accounts.owner.key() {
             return Err(ErrorCode::InvalidOwner.into());
         }
 
-        state_account.cbs_account = new_cbs;
+        config.cbs_account = new_cbs;
+        Ok(())
+    }
+
+    pub fn update_staking_account(
+        ctx: Context<UpdateConfigAccount>,
+        new_staking: Pubkey
+    ) -> Result<()> {
+        let config = &mut ctx.accounts.config;
+        
+        if ctx.accounts.state_account.owner != ctx.accounts.owner.key() {
+            return Err(ErrorCode::InvalidOwner.into());
+        }
+
+        config.staking_account = new_staking;
         Ok(())
     }
 
     pub fn update_owner(
-        ctx: Context<UpdateStateAccount>,
+        ctx: Context<UpdateConfigAccount>,
         new_owner: Pubkey
     ) -> Result<()> {
         let state_account = &mut ctx.accounts.state_account;
@@ -205,7 +249,7 @@ pub mod lpfinance_tokens {
     }
 
     pub fn update_second_owner(
-        ctx: Context<UpdateStateAccount>,
+        ctx: Context<UpdateConfigAccount>,
         new_owner: Pubkey
     ) -> Result<()> {
         let state_account = &mut ctx.accounts.state_account;
@@ -218,6 +262,7 @@ pub mod lpfinance_tokens {
         Ok(())
     }
 
+    // DAIL Mint DAO Token
     pub fn mint_dao_lptoken (
         ctx: Context<MintDaoLpToken>
     ) -> Result<()> {
@@ -239,7 +284,7 @@ pub mod lpfinance_tokens {
         }
         config.last_mint_timestamp = clock.unix_timestamp;
 
-        let mint_amount = total_supply * DAILY_REWARD_RATE / DENOMINATOR;
+        let mint_amount = total_supply * (DAILY_REWARD_RATE - DENOMINATOR) / DENOMINATOR;
 
 
         let (mint_token_authority, mint_token_authority_bump) = 
@@ -314,7 +359,7 @@ pub struct Initialize<'info> {
         payer = authority
     )]
     pub lpbtc_mint: Box<Account<'info, Mint>>,
-
+    // This is LPFI token (DAO)
     #[account(init,
         mint::decimals = LP_TOKEN_DECIMALS,
         mint::authority = state_account,
@@ -323,24 +368,32 @@ pub struct Initialize<'info> {
         payer = authority
     )]
     pub lpdao_mint: Box<Account<'info, Mint>>,
+    #[account(
+        init_if_needed,
+        payer = authority,
+        associated_token::mint = lpdao_mint,
+        associated_token::authority = authority
+    )]
+    pub user_daotoken: Box<Account<'info, TokenAccount>>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub rent: Sysvar<'info, Rent>
 }
 
 #[derive(Accounts)]
 pub struct MintLpToken<'info> {
     #[account(mut)]
-    pub cbs_account: Signer<'info>,
-    #[account(mut, has_one = cbs_account)]
+    pub signer: Signer<'info>,
+    #[account(mut)]
     pub state_account: Box<Account<'info, TokenStateAccount>>,
-    #[account(
-        mut,
-        constraint = cbs_lptoken.mint == lptoken_mint.key(),
-        constraint = cbs_lptoken.owner == cbs_account.key()
+    #[account(mut)]
+    pub config: Box<Account<'info, Config>>,
+    #[account(mut,
+        constraint = user_lptoken.mint == lptoken_mint.key(),
     )]
-    pub cbs_lptoken: Box<Account<'info, TokenAccount>>,
+    pub user_lptoken: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub lptoken_mint: Account<'info, Mint>,
     // Programs and Sysvars
@@ -353,8 +406,10 @@ pub struct MintLpToken<'info> {
 pub struct BurnLpToken<'info> {
     #[account(mut)]
     pub cbs_account: Signer<'info>,
-    #[account(mut, has_one = cbs_account)]
+    #[account(mut)]
     pub state_account: Box<Account<'info, TokenStateAccount>>,
+    #[account(mut, has_one = cbs_account)]
+    pub config: Box<Account<'info, Config>>,
     #[account(
         mut,
         constraint = cbs_lptoken.mint == lptoken_mint.key(),
@@ -416,18 +471,19 @@ pub struct MintDaoLpToken<'info> {
 }
 
 #[derive(Accounts)]
-pub struct UpdateStateAccount<'info> {
+pub struct UpdateConfigAccount<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
     #[account(mut, has_one = owner)]
-    pub state_account: Box<Account<'info, TokenStateAccount>>
+    pub state_account: Box<Account<'info, TokenStateAccount>>,
+    #[account(mut, has_one = state_account)]
+    pub config: Box<Account<'info, Config>>
 }
 
 #[account]
 #[derive(Default)]
 pub struct TokenStateAccount {
     pub owner: Pubkey,
-    pub cbs_account: Pubkey,
     pub second_owner: Pubkey
 }
 
@@ -435,6 +491,8 @@ pub struct TokenStateAccount {
 #[derive(Default)]
 pub struct Config {
     pub state_account: Pubkey,
+    pub cbs_account: Pubkey,
+    pub staking_account: Pubkey,
     pub lpbtc_mint: Pubkey,
     pub lpusd_mint: Pubkey,
     pub lpsol_mint: Pubkey,
