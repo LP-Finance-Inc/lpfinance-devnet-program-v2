@@ -4,7 +4,7 @@ use anchor_spl::{
     token::{self, Mint, MintTo, Burn, Token, TokenAccount }
 };
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("3QDe67WmbnSubjdrzsrdYs7ywVYVvjyuoTRECNVgojRr");
 
 const LP_TOKEN_DECIMALS: u8 = 9;
 const PREFIX: &str = "lptokens";
@@ -31,9 +31,11 @@ pub mod lpfinance_tokens {
 
         state_account.owner = ctx.accounts.authority.key();
 
-        config.lpbtc_mint = ctx.accounts.lpbtc_mint.key();
         config.lpsol_mint = ctx.accounts.lpsol_mint.key();
         config.lpusd_mint = ctx.accounts.lpusd_mint.key();
+        config.lpbtc_mint = ctx.accounts.lpbtc_mint.key();
+        config.lpeth_mint = ctx.accounts.lpeth_mint.key();
+        config.lpdao_mint = ctx.accounts.lpdao_mint.key();
         config.state_account = ctx.accounts.state_account.key();
         config.last_mint_timestamp = 0;
 
@@ -148,10 +150,6 @@ pub mod lpfinance_tokens {
             return Err(ErrorCode::InvalidAmount.into());
         }
 
-        if ctx.accounts.state_account.owner != ctx.accounts.owner.key() {
-            return Err(ErrorCode::InvalidOwner.into());
-        }
-
         let (mint_token_authority, mint_token_authority_bump) = 
         Pubkey::find_program_address(&[PREFIX.as_bytes()], ctx.program_id);
     
@@ -185,10 +183,6 @@ pub mod lpfinance_tokens {
     ) -> Result<()> {
         if amount == 0 {
             return Err(ErrorCode::InvalidAmount.into());
-        }
-
-        if ctx.accounts.state_account.owner != ctx.accounts.owner.key() {
-            return Err(ErrorCode::InvalidOwner.into());
         }
 
         // Burn
@@ -323,11 +317,13 @@ pub struct Initialize<'info> {
     pub authority: Signer<'info>,
     // State Accounts
     #[account(init,
+        seeds = [PREFIX.as_bytes()],
+        bump,
         payer = authority
     )]
     pub state_account: Box<Account<'info, TokenStateAccount>>,
 
-    // State Accounts
+    // Config Accounts
     #[account(init,
         payer = authority
     )]
@@ -359,6 +355,15 @@ pub struct Initialize<'info> {
         payer = authority
     )]
     pub lpbtc_mint: Box<Account<'info, Mint>>,
+
+    #[account(init,
+        mint::decimals = LP_TOKEN_DECIMALS,
+        mint::authority = state_account,
+        seeds = [PREFIX.as_bytes(), b"lpeth_mint".as_ref()],
+        bump,
+        payer = authority
+    )]
+    pub lpeth_mint: Box<Account<'info, Mint>>,
     // This is LPFI token (DAO)
     #[account(init,
         mint::decimals = LP_TOKEN_DECIMALS,
@@ -368,6 +373,7 @@ pub struct Initialize<'info> {
         payer = authority
     )]
     pub lpdao_mint: Box<Account<'info, Mint>>,
+
     #[account(
         init_if_needed,
         payer = authority,
@@ -428,7 +434,7 @@ pub struct BurnLpToken<'info> {
 pub struct OwnerLpToken<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
-    #[account(mut, has_one = owner)]
+    #[account(mut)]
     pub state_account: Box<Account<'info, TokenStateAccount>>,
     #[account(
         init_if_needed,
@@ -496,6 +502,7 @@ pub struct Config {
     pub lpbtc_mint: Pubkey,
     pub lpusd_mint: Pubkey,
     pub lpsol_mint: Pubkey,
+    pub lpeth_mint: Pubkey,
     pub lpdao_mint: Pubkey,
     pub last_mint_timestamp: i64
 }
@@ -506,7 +513,8 @@ pub struct ProgramBumps {
     pub lpbtc_mint: u8,
     pub lpsol_mint: u8,
     pub lpusd_mint: u8,
-    pub lpdao_mint: u8
+    pub lpdao_mint: u8,
+    pub lpeth_mint: u8
 }
 
 #[error_code]

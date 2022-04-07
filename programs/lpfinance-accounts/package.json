@@ -1,6 +1,6 @@
 {
     "scripts": {
-        "update-idl": "cp ./target/idl/lpfinance_accounts.json ../../../devnet-app-v1/src/idls/lpfinance_accounts.json"
+        "update-idl": "cp ./target/idl/lpfinance_accounts.json ../../../devnet-app-v2/src/idls/lpfinance_accounts.json"
     },
     "dependencies": {
         "@project-serum/anchor": "^0.22.0",

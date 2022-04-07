@@ -1,11 +1,11 @@
-[programs.localnet]
-lpfinance_tokens = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+[programs.devnet]
+lpfinance_tokens = "3QDe67WmbnSubjdrzsrdYs7ywVYVvjyuoTRECNVgojRr"
 
 [registry]
 url = "https://anchor.projectserum.com"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "/Users/kk/.config/solana/id.json"
 
 [scripts]

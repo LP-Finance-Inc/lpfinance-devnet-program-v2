@@ -9,9 +9,8 @@ const idl = require("../target/idl/lpfinance_accounts.json");
 const programID = idl.metadata.address;
 
 console.log("ProgramID", programID);
-const accounts_name = "accounts_1";
 
-const cbsprogram = new PublicKey("2bpEcaTSRtenzbtVuQmygXWn69ccj2voJ59PjbPuthtJ"); 
+const cbsprogram = new PublicKey("6fp8G5rybFqcEJDpXUQhc4ump7aHz59dLbYMpxKsdYVp"); 
 const BIG_WHITELIST_LEN = 500;
 
 module.exports = async function (provider) {
@@ -60,29 +59,34 @@ module.exports = async function (provider) {
 
     console.log("Initialize tx", init_tx);
 
-    const addys = [];
-    addys.push(new PublicKey("FuRNteV4mDLdvBG1dwPZXKdY5MopQz8pCAx5BJ1XUojw"));
-    addys.push(new PublicKey("YwwpaoBBeNT6zHNT3n1EqhWdCeHjQsCC7Y8ZFdTy6RL"));
+    // const addys = [];
+    // addys.push(new PublicKey("FuRNteV4mDLdvBG1dwPZXKdY5MopQz8pCAx5BJ1XUojw"));
     // addys.push(new PublicKey("YwwpaoBBeNT6zHNT3n1EqhWdCeHjQsCC7Y8ZFdTy6RL"));
+    // // addys.push(new PublicKey("YwwpaoBBeNT6zHNT3n1EqhWdCeHjQsCC7Y8ZFdTy6RL"));
 
-    const tx = await program.rpc.addWhitelistAddresses(addys, {
-      accounts: {
-        config: configAccount.publicKey,
-        whitelist: whiteListData.publicKey,
-        authority
-      }
-    });
+    // const tx = await program.rpc.addWhitelistAddresses(addys, {
+    //   accounts: {
+    //     config: configAccount.publicKey,
+    //     whitelist: whiteListData.publicKey,
+    //     authority
+    //   }
+    // });
 
-    console.log("Tx: ", tx);
+    // console.log("Tx: ", tx);
 
-    let accountData = await program.account.whiteList.fetch(whiteListData.publicKey);
-    console.log("Account List1: ", accountData.addresses[0].toBase58());
-    console.log("Account List2: ", accountData.addresses[1].toBase58());
+    // let accountData = await program.account.whiteList.fetch(whiteListData.publicKey);
+    // console.log("Account List1: ", accountData.addresses[0].toBase58());
+    // console.log("Account List2: ", accountData.addresses[1].toBase58());
 
   } catch (err) {
     console.log("Transaction error: ", err);
   }
 }
+
+// 2022-04-07 devnet
+// ProgramID 6gUZGnEHSjVmZ3dq99wd7Ut8ER7PSoEAqPjFfjPKkuMv
+// ConfigAccount: EoCq8TCPY2zZN3Q16CVUKoS9UqWUYaChdv2i3Z4rFmFv
+// WhiteListAccount: C6kGuaWLQ4WiyDb8GigHHSEw6XbsYkhc9ECSWGNj1kom
 
 // 2022-03-22 devnet
 // ProgramID CaBy6Mh16bVQpnqY7Crt13hU4Zyv8QbW55GfTvVFwxYh

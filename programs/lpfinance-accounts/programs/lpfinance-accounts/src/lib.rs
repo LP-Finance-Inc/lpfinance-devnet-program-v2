@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use std::ops::DerefMut;
 
-declare_id!("CaBy6Mh16bVQpnqY7Crt13hU4Zyv8QbW55GfTvVFwxYh");
+declare_id!("6gUZGnEHSjVmZ3dq99wd7Ut8ER7PSoEAqPjFfjPKkuMv");
 
 const MAX_LEN: usize = 500;
 

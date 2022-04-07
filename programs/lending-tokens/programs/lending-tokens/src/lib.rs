@@ -4,7 +4,7 @@ use anchor_spl::{
     token::{self, Mint, MintTo, Burn, Token, TokenAccount }
 };
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("DhpuuLX7RaPeKeYuXtt1Vw4VdW3wNkrpiyjdDYozrRbw");
 
 const PREFIX: &str = "lendtokens";
 const TOKEN_DECIMALS: u8 = 9;
@@ -32,33 +32,6 @@ pub mod lending_tokens {
         config.usdt_mint = ctx.accounts.usdt_mint.key();
 
         config.state_account = ctx.accounts.state_account.key();
-        config.last_mint_timestamp = 0;
-
-        // INITIAL SUPPLY
-        let (mint_token_authority, mint_token_authority_bump) = 
-        Pubkey::find_program_address(&[PREFIX.as_bytes()], ctx.program_id);
-    
-        if mint_token_authority != ctx.accounts.state_account.key() {
-            return Err(ErrorCode::InvalidOwner.into());
-        }
-
-        // Mint
-        let seeds = &[
-            PREFIX.as_bytes(),
-            &[mint_token_authority_bump]
-        ];
-        let signer = &[&seeds[..]];
-
-        let cpi_accounts = MintTo {
-            mint: ctx.accounts.lpdao_mint.to_account_info(),
-            to: ctx.accounts.user_daotoken.to_account_info(),
-            authority: ctx.accounts.state_account.to_account_info(),
-        };
-
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-
-        token::mint_to(cpi_ctx, INITIAL_SUPPLY * 1000000000)?;
 
         Ok(())
     }
@@ -84,16 +57,13 @@ pub mod lending_tokens {
         Ok(())
     }
 
+    // Faucet MINT
     pub fn mint_token(
         ctx: Context<MintToken>,
         amount: u64
     ) -> Result<()> {
         if amount == 0 {
             return Err(ErrorCode::InvalidAmount.into());
-        }
-
-        if ctx.accounts.state_account.owner != ctx.accounts.owner.key() {
-            return Err(ErrorCode::InvalidOwner.into());
         }
 
         let (mint_token_authority, mint_token_authority_bump) = 
@@ -150,6 +120,33 @@ pub mod lending_tokens {
 
         Ok(())
     }
+
+    pub fn add_token(
+        ctx: Context<AddToken>
+    ) -> Result<()> {
+
+        let state_account = &mut ctx.accounts.state_account;
+
+        if state_account.owner != ctx.accounts.owner.key() {
+            return Err(ErrorCode::InvalidOwner.into());
+        }
+        
+        let config = &mut ctx.accounts.config;
+
+        config.ust_mint = ctx.accounts.ust_mint.key();
+        config.usdc_mint = ctx.accounts.usdc_mint.key();
+        config.msol_mint = ctx.accounts.msol_mint.key();
+        config.srm_mint = ctx.accounts.srm_mint.key();
+        config.scnsol_mint = ctx.accounts.scnsol_mint.key();
+        config.stsol_mint = ctx.accounts.stsol_mint.key();
+        config.btc_mint = ctx.accounts.btc_mint.key();
+        config.usdt_mint = ctx.accounts.usdt_mint.key();
+        config.eth_mint = ctx.accounts.eth_mint.key();
+
+        config.state_account = ctx.accounts.state_account.key();
+
+        Ok(())
+    }
 }
 
 
@@ -160,6 +157,8 @@ pub struct Initialize<'info> {
     pub authority: Signer<'info>,
     // State Accounts
     #[account(init,
+        seeds = [PREFIX.as_bytes()],
+        bump,
         payer = authority
     )]
     pub state_account: Box<Account<'info, TokenStateAccount>>,
@@ -252,8 +251,6 @@ pub struct BurnToken<'info> {
     pub owner: Signer<'info>,
     #[account(mut)]
     pub state_account: Box<Account<'info, TokenStateAccount>>,
-    #[account(mut)]
-    pub config: Box<Account<'info, Config>>,
     #[account(
         mut,
         constraint = user_token.mint == token_mint.key(),
@@ -290,6 +287,41 @@ pub struct MintToken<'info> {
     pub rent: Sysvar<'info, Rent>
 }
 
+#[derive(Accounts)]
+pub struct AddToken<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    #[account(mut, has_one = owner)]
+    pub state_account: Box<Account<'info, TokenStateAccount>>,
+    // State Accounts
+    #[account(init,
+        payer = owner
+    )]
+    pub config: Box<Account<'info, Config>>,
+
+    #[account(init,
+        mint::decimals = TOKEN_DECIMALS,
+        mint::authority = state_account,
+        seeds = [PREFIX.as_bytes(), b"weth_mint".as_ref()],
+        bump,
+        payer = owner
+    )]
+    pub eth_mint: Box<Account<'info, Mint>>,
+    pub ust_mint: Box<Account<'info, Mint>>,
+    pub usdc_mint: Box<Account<'info, Mint>>,
+    pub msol_mint: Box<Account<'info, Mint>>,
+    pub srm_mint: Box<Account<'info, Mint>>,
+    pub scnsol_mint: Box<Account<'info, Mint>>,
+    pub stsol_mint: Box<Account<'info, Mint>>,
+    pub btc_mint: Box<Account<'info, Mint>>,
+    pub usdt_mint: Box<Account<'info, Mint>>, 
+    
+    // Programs and Sysvars
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>
+}
+
 
 #[derive(Accounts)]
 pub struct UpdateConfigAccount<'info> {
@@ -320,6 +352,7 @@ pub struct Config {
     pub stsol_mint: Pubkey,
     pub btc_mint: Pubkey,
     pub usdt_mint: Pubkey,
+    pub eth_mint: Pubkey,
 }
 
 #[error_code]

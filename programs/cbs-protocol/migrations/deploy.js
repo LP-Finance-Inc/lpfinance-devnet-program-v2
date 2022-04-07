@@ -10,19 +10,26 @@ const idl = require("../target/idl/cbs_protocol.json");
 const programID = idl.metadata.address;
 
 console.log("ProgramID", programID);
-const protocol_name = "cbs_pool05";
+const PREFIX = "cbsprotocol0";
 const pool_usdc = "pool_usdc";
 const pool_btc = "pool_btc";
+const pool_eth = "pool_eth";
+const pool_msol = "pool_msol";
 const pool_lpsol = "pool_lpsol";
 const pool_lpusd = "pool_lpusd";
-const pool_msol = "pool_msol";
-const lpsol_mint = "lpsol_mint";
-const lpusd_mint = "lpusd_mint";
+const pool_lpbtc = "pool_lpbtc";
+const pool_lpeth = "pool_lpeth";
 
 // Test Token's MINT
-const usdcMint = new PublicKey("2Q1WAAgnpEox5Y4b6Y8YyXVwFNhDdGot467XfvdBJaPf"); 
-const btcMint = new PublicKey("Hv96pk4HkhGcbNxkBvb7evTU88KzedvgVy2oddBB1ySB");
-const msolMint = new PublicKey("EJ94TwhddyUAra7i3qttQ64Q1wExJYb8GmACbHbAnvKF");
+const usdcMint = new PublicKey("8cCs2Th4ivThrJPrkgAWNTegQgMcuBmY7TASv7FPhitj"); 
+const btcMint = new PublicKey("25ggxgxMqejf5v9WSQWboqxpsrik1u94PCP5EwPBYeEJ");
+const msolMint = new PublicKey("3dDwpZWQqCc5SttGJ2yNnYUnLSBnh9cjWJQPeKNDmDTz");
+const ethMint = new PublicKey("6Y9PaAZjDs2n4ZJonCu2uCjRp8tuqe6KJEDs1k6iLkbD");
+
+const lpsolMint = new PublicKey("8cCs2Th4ivThrJPrkgAWNTegQgMcuBmY7TASv7FPhitj"); 
+const lpusdMint = new PublicKey("25ggxgxMqejf5v9WSQWboqxpsrik1u94PCP5EwPBYeEJ");
+const lpbtcMint = new PublicKey("3dDwpZWQqCc5SttGJ2yNnYUnLSBnh9cjWJQPeKNDmDTz");
+const lpethMint = new PublicKey("6Y9PaAZjDs2n4ZJonCu2uCjRp8tuqe6KJEDs1k6iLkbD");
 
 module.exports = async function (provider) {
   // Configure client to use the provider.
@@ -32,112 +39,122 @@ module.exports = async function (provider) {
   const program = new anchor.Program(idl, programID);
 
   try {
-    /* interact with the program via rpc */
-    let bumps = {
-      stateAccount: 0,
-      lpusdMint: 0,
-      lpsolMint: 0,
-      poolUsdc: 0,
-      poolBtc: 0,
-      poolMsol: 0,
-      poolLpsol: 0,
-      poolLpusd: 0
-    };
+    const configAccount = anchor.web3.Keypair.generate();
+    console.log("Config: ", configAccount.publicKey.toBase58());
 
     // Find PDA from `cbs protocol` for state account
     const [stateAccount, stateAccountBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(protocol_name)],
+      [Buffer.from(PREFIX)],
       program.programId
     );
-    bumps.stateAccount = stateAccountBump;
     console.log("State-Account:", stateAccount.toBase58());
 
     // Find PDA for `usdc pool`
-    const [poolUsdc, poolUsdcBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(protocol_name), Buffer.from(pool_usdc)],
+    const [poolEth, poolEthBump] = await PublicKey.findProgramAddress(
+      [Buffer.from(PREFIX), Buffer.from(pool_eth)],
       program.programId
     );
-    bumps.poolUsdc = poolUsdcBump;
+    console.log("Pool-ETH:", poolEth.toBase58());
+
+    // Find PDA for `usdc pool`
+    const [poolUsdc, poolUsdcBump] = await PublicKey.findProgramAddress(
+      [Buffer.from(PREFIX), Buffer.from(pool_usdc)],
+      program.programId
+    );
     console.log("Pool-USDC:", poolUsdc.toBase58());
 
     // Find PDA for `btc pool`
     const [poolBtc, poolBtcBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(protocol_name), Buffer.from(pool_btc)],
+      [Buffer.from(PREFIX), Buffer.from(pool_btc)],
       program.programId
     );
-    bumps.poolBtc = poolBtcBump;
     console.log("Pool-BTC:", poolBtc.toBase58());
 
     // Find PDA for `btc pool`
     const [poolMsol, poolMsolBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(protocol_name), Buffer.from(pool_msol)],
+      [Buffer.from(PREFIX), Buffer.from(pool_msol)],
       program.programId
     );
-    bumps.poolMsol = poolMsolBump;
     console.log("Pool-MSOL:", poolMsol.toBase58());
 
     // Find PDA for `lpsol pool`
     const [poolLpsol, poolLpsolBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(protocol_name), Buffer.from(pool_lpsol)],
+      [Buffer.from(PREFIX), Buffer.from(pool_lpsol)],
       program.programId
     );
-    bumps.poolLpsol = poolLpsolBump;
     console.log("Pool-LpSOL:", poolLpsol.toBase58());
 
     // Find PDA for `lpusd pool`
     const [poolLpusd, poolLpusdBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(protocol_name), Buffer.from(pool_lpusd)],
+      [Buffer.from(PREFIX), Buffer.from(pool_lpusd)],
       program.programId
     );
-    bumps.poolLpusd = poolLpusdBump;
     console.log("Pool-LpUSD:", poolLpusd.toBase58());
 
-    // Find PDA for `lpsol mint`
-    const [lpsolMint, lpsolMintBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(protocol_name), Buffer.from(lpsol_mint)],
+    // Find PDA for `lpbtc pool`
+    const [poolLpbtc, poolLpbtcBump] = await PublicKey.findProgramAddress(
+      [Buffer.from(PREFIX), Buffer.from(pool_lpbtc)],
       program.programId
     );
-    bumps.lpsolMint = lpsolMintBump;
-    console.log("LpSOL-Mint:", lpsolMint.toBase58());
+    console.log("Pool-LpBTC:", poolLpbtc.toBase58());
 
-    // Find PDA for `lpsol mint`
-    const [lpusdMint, lpusdMintBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(protocol_name), Buffer.from(lpusd_mint)],
+    // Find PDA for `lpeth pool`
+    const [poolLpeth, poolLpethBump] = await PublicKey.findProgramAddress(
+      [Buffer.from(PREFIX), Buffer.from(pool_lpeth)],
       program.programId
     );
-    bumps.lpusdMint = lpusdMintBump;
-    console.log("LpUSD-Mint:", lpusdMint.toBase58());
-
-    console.log("Bumps", bumps);
+    console.log("Pool-LpETH:", poolLpeth.toBase58());
 
     // Signer
     const authority = provider.wallet.publicKey;
        
     // initialize
-    await program.rpc.initialize(protocol_name, bumps, {
+    await program.rpc.initialize({
       accounts: {
         authority,
         stateAccount,
+        config: configAccount.publicKey,
         usdcMint,
         btcMint,
         msolMint,
+        ethMint,
         poolUsdc,
+        poolEth,
         poolBtc,
         poolMsol,
         lpsolMint,
         lpusdMint,
+        lpbtcMint,
+        lpethMint,
         poolLpsol,
         poolLpusd,
+        poolLpbtc,
+        poolLpeth,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
         rent: SYSVAR_RENT_PUBKEY,
       },
+      signers: [configAccount]
     });
 
   } catch (err) {
     console.log("Transaction error: ", err);
   }
 }
+
+// 2022-04-07 devnet
+// ProgramID 6fp8G5rybFqcEJDpXUQhc4ump7aHz59dLbYMpxKsdYVp
+// Config:  6bUzHQxih8vuMtZL7fm2xsfSt55zDuL4m9RwrqXk9YDp
+// State-Account: Fe3ssjryG7wW7aC7PnTrA8w6TJSKs8CbV3DjoCjJJsdw
+// Pool-ETH: 5iPpUr2wtoZ7KLDEvtiYJ3EFKzbgbGPep73mTbgeyp8q
+// Pool-USDC: Cdf1MY5c4aR9J8eWChHDvjivdWCsmm6QfdTBWyYBtT7S
+// Pool-BTC: 49it3gP5BSpGFLuHRQXdn5vMGyPtgiaVNfRQ6N8NNet4
+// Pool-MSOL: 5wJmThdpat6aie8ZxAXPhnphuqjrGpXEai2bNE2TPS6D
+// Pool-LpSOL: MKi8ukqLJsfxXb4fCVf1WSWn2UyvP2Tib6qgcfkb25b
+// Pool-LpUSD: FiDzogxrkJzZMpWsJRF1ZqftH4G7AmzisEZ1ZBciq6s2
+// Pool-LpBTC: HWHn4EjmaMwwpsAkGRFnetfffhRi7BDBnDXqktqDvuEJ
+// Pool-LpETH: 3mJM6UXAHifoRvhpo9QPfsBY3guhEMiP4D7T4S72HEHm
+
 // 2022-03-14 devnet
 // ProgramID 3YhaNLN3oYUaAXjK9yRqVVNUYhqPsVqB5q9GEJ1vWcTM
 // State-Account: 2bpEcaTSRtenzbtVuQmygXWn69ccj2voJ59PjbPuthtJ
@@ -179,7 +196,7 @@ module.exports = async function (provider) {
 // }
 
 // 2022-03-1 devnet
-// const protocol_name = "cbs_pool02";
+// const PREFIX = "cbs_pool02";
 // ProgramID 3YhaNLN3oYUaAXjK9yRqVVNUYhqPsVqB5q9GEJ1vWcTM
 // State-Account: ES4ob9B6ngcM5FXDShXA6SHUvFSv1DQiZY5bG9NakXaR
 // Pool-USDC: 3FT6VJn3kPAdaBjnNq9oxk47cJVtfyrt8EFFWwArxtMX

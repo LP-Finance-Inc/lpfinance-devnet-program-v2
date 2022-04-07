@@ -1,12 +1,12 @@
 {
     "scripts": {
-        "update-idl": "cp ./target/idl/lpfinance_swap.json ../../../devnet-app-v1/src/idls/lpfinance_swap.json"
+        "update-idl": "cp ./target/idl/lpfinance_tokens.json ../../../devnet-app-v2/src/idls/lpfinance_tokens.json"
     },
     "dependencies": {
         "@project-serum/anchor": "^0.22.0",
         "@project-serum/common": "^0.0.1-beta.3",
         "@project-serum/serum": "^0.13.61",
-        "@solana/spl-token": "^0.2.0"
+        "@solana/spl-token": "0.1.8"
     },
     "devDependencies": {
         "@types/mocha": "^9.0.0",

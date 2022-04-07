@@ -16,7 +16,7 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = "0.22.0"
+anchor-lang = { version = "0.22.0", features=["init-if-needed"] }
 anchor-spl = {version = "0.22.0"}
 spl-token = {version = "3.1.1", features = ["no-entrypoint"]}
 num-derive = "0.3"
@@ -25,3 +25,4 @@ nom = "7"
 solana-program = "1.6.6"
 pyth-client = "0.2.2"
 lpfinance-accounts = { path = "../../../lpfinance-accounts/programs/lpfinance-accounts", features=["cpi"]}
+lpfinance-tokens = { path = "../../../lpfinance-tokens/programs/lpfinance-tokens", features=["cpi"]}
