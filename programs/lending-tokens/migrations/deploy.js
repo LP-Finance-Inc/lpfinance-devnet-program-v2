@@ -237,12 +237,12 @@ const burn = async () => {
 // 2022-04-06
 // State-Account: DjhuhArv5yhnE6atZDqpQTwsgMYM7xcqKzSUXei24Fks
 // Config: GgRw24thLTL4EGdRitKViPQPfBuPUfE3oyiw1Y8umVE3
-// UST mint: CZqXAbuUzGngd97oLjR1bcWkkZrz7MsKAbTJX9oT5Epv
 // USDC Mint: 8cCs2Th4ivThrJPrkgAWNTegQgMcuBmY7TASv7FPhitj
+// Btc Mint: 25ggxgxMqejf5v9WSQWboqxpsrik1u94PCP5EwPBYeEJ
 // MSOL Mint: 3dDwpZWQqCc5SttGJ2yNnYUnLSBnh9cjWJQPeKNDmDTz
+// ETH Mint: 6Y9PaAZjDs2n4ZJonCu2uCjRp8tuqe6KJEDs1k6iLkbD
 // SRM Mint: GB8u3PRkQoi73v5Tctqj5he4M441S2QfqMpcaAsnozE6
 // scnSOL Mint: GXFmXhwBMfXq5utccyNcQRrfQuBVjjprHKSqLzi3P7vn
 // stsol Mint: CJGeMYvL7s2k8VHooJ1JvgZsCJqrSEExmPkpFBZskAfV
-// Btc Mint: 25ggxgxMqejf5v9WSQWboqxpsrik1u94PCP5EwPBYeEJ
 // USDT Mint: DpsmMkLP5yAeBSh7yAMHNuBurLnc8LNxvoddAoKo27dk
-// ETH Mint: 6Y9PaAZjDs2n4ZJonCu2uCjRp8tuqe6KJEDs1k6iLkbD
+// UST mint: CZqXAbuUzGngd97oLjR1bcWkkZrz7MsKAbTJX9oT5Epv

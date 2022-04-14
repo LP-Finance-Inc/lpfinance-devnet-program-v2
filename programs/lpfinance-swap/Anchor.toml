@@ -1,5 +1,5 @@
 [programs.devnet]
-lpfinance_swap = "9jBjsXqKo6W54Hf65wrgR9k9AVYuCfDQQNUfygFtjWPJ"
+lpfinance_swap = "6dMiU9ZmaFTPeLPco5rMjXCbUUyJZyRvHPccXXTefTLu"
 
 [registry]
 url = "https://anchor.projectserum.com"

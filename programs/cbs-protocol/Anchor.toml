@@ -1,5 +1,5 @@
 [programs.devnet]
-cbs_protocol = "6fp8G5rybFqcEJDpXUQhc4ump7aHz59dLbYMpxKsdYVp"
+cbs_protocol = "3f39cgs9wPLVv4vGySNecjKtefe5MJYkFEEj3v6bPequ"
 
 [registry]
 url = "https://anchor.projectserum.com"

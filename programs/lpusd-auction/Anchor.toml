@@ -1,5 +1,5 @@
 [programs.devnet]
-lpusd_auction = "6KS4ho2CDvr7MGofHU6F6WJfQ5j6DL8nhBWJtkhMTzqt"
+lpusd_auction = "E3tXtRu4xvVCxUHiM9cEMpjhuSUXkNBd3gxr5RdKzSRw"
 
 [registry]
 url = "https://anchor.projectserum.com"

@@ -1,6 +1,6 @@
 {
     "scripts": {
-        "update-idl": "cp ./target/idl/lpusd_auction.json ../../../devnet-app-v1/src/idls/lpusd_auction.json"
+        "update-idl": "cp ./target/idl/lpusd_auction.json ../../../devnet-app-v2/src/idls/lpusd_auction.json"
     },
     "dependencies": {
         "@project-serum/anchor": "^0.22.0",

@@ -10,7 +10,7 @@ const programID = idl.metadata.address;
 
 console.log("ProgramID", programID);
 
-const cbsprogram = new PublicKey("6fp8G5rybFqcEJDpXUQhc4ump7aHz59dLbYMpxKsdYVp"); 
+const cbsprogram = new PublicKey("Fe3ssjryG7wW7aC7PnTrA8w6TJSKs8CbV3DjoCjJJsdw"); 
 const BIG_WHITELIST_LEN = 500;
 
 module.exports = async function (provider) {
@@ -85,8 +85,8 @@ module.exports = async function (provider) {
 
 // 2022-04-07 devnet
 // ProgramID 6gUZGnEHSjVmZ3dq99wd7Ut8ER7PSoEAqPjFfjPKkuMv
-// ConfigAccount: EoCq8TCPY2zZN3Q16CVUKoS9UqWUYaChdv2i3Z4rFmFv
-// WhiteListAccount: C6kGuaWLQ4WiyDb8GigHHSEw6XbsYkhc9ECSWGNj1kom
+// ConfigAccount: CZmYgJ7wHVQm8ww66JyitYM67qDLpE6gGP7vRkrEPGXq
+// WhiteListAccount: J3eH9PAzTh6xuaguT2J3Sti6iiFqVR1yxiJjM7ssYaKt
 
 // 2022-03-22 devnet
 // ProgramID CaBy6Mh16bVQpnqY7Crt13hU4Zyv8QbW55GfTvVFwxYh

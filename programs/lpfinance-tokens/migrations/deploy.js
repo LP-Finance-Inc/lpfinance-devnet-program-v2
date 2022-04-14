@@ -73,35 +73,43 @@ module.exports = async function (provider) {
     // Signer
     const authority = provider.wallet.publicKey;
 
-    const configAccount = anchor.web3.Keypair.generate();
-    console.log("Config: ", configAccount.publicKey.toBase58());
-    
-    
-    const userDaotoken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      lpdaoMint,
-      authority, true
-    )
-    // initialize
-    await program.rpc.initialize({
+    // const configAccount = anchor.web3.Keypair.generate();
+    // console.log("Config: ", configAccount.publicKey.toBase58());
+    const config = new PublicKey("2KoT2ifTjzWd773nUa9aZD6fTVzD9kJgzddLbCFbVU71");
+    const cbs_account = new PublicKey("HeuPo1nG7uVQhNmBUxmJAyTsCPN9F99uyuC1UdeGMhZe");
+    await program.rpc.updateCbsAccount(cbs_account, {
       accounts: {
-        authority,
+        owner: authority,
         stateAccount,
-        config: configAccount.publicKey,
-        lpsolMint,
-        lpusdMint,
-        lpbtcMint,
-        lpethMint,
-        lpdaoMint,
-        userDaotoken,
-        systemProgram: SystemProgram.programId,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        rent: SYSVAR_RENT_PUBKEY,
-      },
-      signers: [configAccount]
+        config
+      }
     });
+    // const userDaotoken = await Token.getAssociatedTokenAddress(
+    //   ASSOCIATED_TOKEN_PROGRAM_ID,
+    //   TOKEN_PROGRAM_ID,
+    //   lpdaoMint,
+    //   authority, true
+    // )
+
+    // initialize
+    // await program.rpc.initialize({
+    //   accounts: {
+    //     authority,
+    //     stateAccount,
+    //     config: configAccount.publicKey,
+    //     lpsolMint,
+    //     lpusdMint,
+    //     lpbtcMint,
+    //     lpethMint,
+    //     lpdaoMint,
+    //     userDaotoken,
+    //     systemProgram: SystemProgram.programId,
+    //     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    //     tokenProgram: TOKEN_PROGRAM_ID,
+    //     rent: SYSVAR_RENT_PUBKEY,
+    //   },
+    //   signers: [configAccount]
+    // });
 
   } catch (err) {
     console.log("Transaction error: ", err);

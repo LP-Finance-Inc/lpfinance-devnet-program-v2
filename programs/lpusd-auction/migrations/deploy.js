@@ -11,19 +11,37 @@ const idl = require("../target/idl/lpusd_auction.json");
 const programID = idl.metadata.address;
 
 console.log("ProgramID", programID);
-const auction_name = "auction_03";
+const PREFIX = "lpauction0";
+
 const pool_usdc = "pool_usdc";
 const pool_btc = "pool_btc";
+const pool_eth = "pool_eth";
+const pool_msol = "pool_msol";
+const pool_ust = "pool_ust";
+const pool_srm = "pool_srm";
+const pool_scnsol = "pool_scnsol";
+const pool_stsol = "pool_stsol";
+const pool_usdt = "pool_usdt";
 const pool_lpsol = "pool_lpsol";
 const pool_lpusd = "pool_lpusd";
-const pool_msol = "pool_msol";
+const pool_lpbtc = "pool_lpbtc";
+const pool_lpeth = "pool_lpeth";
 
 // Test Token's MINT
-const usdcMint = new PublicKey("2Q1WAAgnpEox5Y4b6Y8YyXVwFNhDdGot467XfvdBJaPf"); 
-const btcMint = new PublicKey("Hv96pk4HkhGcbNxkBvb7evTU88KzedvgVy2oddBB1ySB");
-const lpsolMint = new PublicKey("BseXpATR4hqy7UHvyNztLK711mYPHNCsS5AcBzWzSq7X"); 
-const lpusdMint = new PublicKey("GPNCGAjyhA1qcSgSotQvJsM1xcGnDMgtTr9TJ1HVVQgG");
-const msolMint = new PublicKey("EJ94TwhddyUAra7i3qttQ64Q1wExJYb8GmACbHbAnvKF");
+const usdcMint = new PublicKey("8cCs2Th4ivThrJPrkgAWNTegQgMcuBmY7TASv7FPhitj"); 
+const btcMint = new PublicKey("25ggxgxMqejf5v9WSQWboqxpsrik1u94PCP5EwPBYeEJ");
+const msolMint = new PublicKey("3dDwpZWQqCc5SttGJ2yNnYUnLSBnh9cjWJQPeKNDmDTz");
+const ethMint = new PublicKey("6Y9PaAZjDs2n4ZJonCu2uCjRp8tuqe6KJEDs1k6iLkbD");
+const ustMint = new PublicKey("CZqXAbuUzGngd97oLjR1bcWkkZrz7MsKAbTJX9oT5Epv"); 
+const srmMint = new PublicKey("GB8u3PRkQoi73v5Tctqj5he4M441S2QfqMpcaAsnozE6");
+const scnsolMint = new PublicKey("GXFmXhwBMfXq5utccyNcQRrfQuBVjjprHKSqLzi3P7vn");
+const stsolMint = new PublicKey("CJGeMYvL7s2k8VHooJ1JvgZsCJqrSEExmPkpFBZskAfV");
+const usdtMint = new PublicKey("DpsmMkLP5yAeBSh7yAMHNuBurLnc8LNxvoddAoKo27dk");
+
+const lpsolMint = new PublicKey("9Mcq5PQsEXuSY19ei8CqzRawPdPSAH1VM63GqtZU3x18"); 
+const lpusdMint = new PublicKey("8YawjpcTDs3SsR7bsCHDb4b1Yv3PAKULB5xZ5VNunroJ");
+const lpbtcMint = new PublicKey("B8w6e1gSCHE4xNhPhaK5y3cYYBwKMmfJqfe3C9692mGW");
+const lpethMint = new PublicKey("8ZwwTyZ3PSyAzpqPeTXnvxdTF88CxzDQ57hF48WQvK7c");
 
 module.exports = async function (provider) {
   // Configure client to use the provider.
@@ -33,88 +51,171 @@ module.exports = async function (provider) {
   const program = new anchor.Program(idl, programID);
 
   try {
-    /* interact with the program via rpc */
-    let bumps = {
-      stateAccount: 0,
-      poolUsdc: 0,
-      poolBtc: 0,
-      poolLpsol: 0,
-      poolLpusd: 0,
-      poolMsol: 0
-    };
-
+    const configAccount = anchor.web3.Keypair.generate();
+    console.log("Config: ", configAccount.publicKey.toBase58());
+    
     // Find PDA from `cbs protocol` for state account
     const [stateAccount, stateAccountBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(auction_name)],
+      [Buffer.from(PREFIX)],
       program.programId
     );
-    bumps.stateAccount = stateAccountBump;
     console.log("State-Account:", stateAccount.toBase58());
 
     // Find PDA for `usdc pool`
     const [poolUsdc, poolUsdcBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(auction_name), Buffer.from(pool_usdc)],
+      [Buffer.from(PREFIX), Buffer.from(pool_usdc)],
       program.programId
     );
-    bumps.poolUsdc = poolUsdcBump;
     console.log("Pool-USDC:", poolUsdc.toBase58());
 
     // Find PDA for `btc pool`
     const [poolBtc, poolBtcBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(auction_name), Buffer.from(pool_btc)],
+      [Buffer.from(PREFIX), Buffer.from(pool_btc)],
       program.programId
     );
-    bumps.poolBtc = poolBtcBump;
     console.log("Pool-BTC:", poolBtc.toBase58());
 
-    // Find PDA for `lpsol pool`
+    // Find PDA for `msol pool`
     const [poolMsol, poolMsolBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(auction_name), Buffer.from(pool_msol)],
+      [Buffer.from(PREFIX), Buffer.from(pool_msol)],
       program.programId
     );
-    bumps.poolMsol = poolMsolBump;
     console.log("Pool-mSOL:", poolMsol.toBase58());
+
+    // Find PDA for `eth pool`
+    const [poolEth, poolEthBump] = await PublicKey.findProgramAddress(
+      [Buffer.from(PREFIX), Buffer.from(pool_eth)],
+      program.programId
+    );
+    console.log("Pool-ETH:", poolEth.toBase58());
+
+    // Find PDA for `ust pool`
+    const [poolUst, poolUstBump] = await PublicKey.findProgramAddress(
+      [Buffer.from(PREFIX), Buffer.from(pool_ust)],
+      program.programId
+    );
+    console.log("Pool-UST:", poolUst.toBase58());
+
+    // Find PDA for `srm pool`
+    const [poolSrm, poolSrmBump] = await PublicKey.findProgramAddress(
+      [Buffer.from(PREFIX), Buffer.from(pool_srm)],
+      program.programId
+    );
+    console.log("Pool-SRM:", poolSrm.toBase58());
+
+    // Find PDA for `scnsol pool`
+    const [poolScnsol, poolScnsolBump] = await PublicKey.findProgramAddress(
+      [Buffer.from(PREFIX), Buffer.from(pool_scnsol)],
+      program.programId
+    );
+    console.log("Pool-SCNSOL:", poolScnsol.toBase58());
+
+    // Find PDA for `stsol pool`
+    const [poolStsol, poolStsolBump] = await PublicKey.findProgramAddress(
+      [Buffer.from(PREFIX), Buffer.from(pool_stsol)],
+      program.programId
+    );
+    console.log("Pool-STSOL:", poolStsol.toBase58());
+    
+    // Find PDA for `usdt pool`
+    const [poolUsdt, poolUsdtBump] = await PublicKey.findProgramAddress(
+      [Buffer.from(PREFIX), Buffer.from(pool_usdt)],
+      program.programId
+    );
+    console.log("Pool-USDT:", poolUsdt.toBase58());
 
     // Find PDA for `lpsol pool`
     const [poolLpsol, poolLpsolBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(auction_name), Buffer.from(pool_lpsol)],
+      [Buffer.from(PREFIX), Buffer.from(pool_lpsol)],
       program.programId
     );
-    bumps.poolLpsol = poolLpsolBump;
     console.log("Pool-LpSOL:", poolLpsol.toBase58());
 
     // Find PDA for `lpusd pool`
     const [poolLpusd, poolLpusdBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(auction_name), Buffer.from(pool_lpusd)],
+      [Buffer.from(PREFIX), Buffer.from(pool_lpusd)],
       program.programId
     );
-    bumps.poolLpusd = poolLpusdBump;
     console.log("Pool-LpUSD:", poolLpusd.toBase58());
 
-    console.log("Bumps", bumps);
+    // Find PDA for `lpbtc pool`
+    const [poolLpbtc, poolLpbtcBump] = await PublicKey.findProgramAddress(
+      [Buffer.from(PREFIX), Buffer.from(pool_lpbtc)],
+      program.programId
+    );
+    console.log("Pool-LpBTC:", poolLpbtc.toBase58());
+
+    // Find PDA for `lpeth pool`
+    const [poolLpeth, poolLpethBump] = await PublicKey.findProgramAddress(
+      [Buffer.from(PREFIX), Buffer.from(pool_lpeth)],
+      program.programId
+    );
+    console.log("Pool-LpETH:", poolLpeth.toBase58());
 
     // Signer
     const authority = provider.wallet.publicKey;
        
     // initialize
-    await program.rpc.initialize(auction_name, bumps, {
+    await program.rpc.initialize({
       accounts: {
         authority,
         stateAccount,
+        config: configAccount.publicKey,
         usdcMint,
         btcMint,
         msolMint,
+        ethMint,
+        ustMint,
+        srmMint,
+        scnsolMint,
+        stsolMint,
+        usdtMint,
         lpsolMint,
         lpusdMint,
-        poolUsdc,
-        poolBtc,
+        lpbtcMint,
+        lpethMint,
         poolLpsol,
-        poolMsol,
         poolLpusd,
+        poolLpbtc,
+        poolLpeth,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
         rent: SYSVAR_RENT_PUBKEY,
       },
+      signers: [configAccount]
+    });
+
+    await program.rpc.initializePool({
+      accounts: {
+        authority,
+        stateAccount,
+        config: configAccount.publicKey,
+        usdcMint,
+        btcMint,
+        msolMint,
+        ethMint,
+        ustMint,
+        srmMint,
+        scnsolMint,
+        stsolMint,
+        usdtMint,
+        poolUsdc,
+        poolEth,
+        poolBtc,
+        poolMsol,
+        poolUst,
+        poolSrm,
+        poolScnsol,
+        poolStsol,
+        poolUsdt,
+        lpsolMint,
+        lpusdMint,
+        lpbtcMint,
+        lpethMint,
+        systemProgram: SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        rent: SYSVAR_RENT_PUBKEY,
+      }
     });
 
   } catch (err) {
@@ -122,51 +223,20 @@ module.exports = async function (provider) {
   }
 }
 
-// 2022-03-17
-// ProgramID 6KS4ho2CDvr7MGofHU6F6WJfQ5j6DL8nhBWJtkhMTzqt
-// State-Account: kr6SYFJZvfVmFWg4gJPW7Qm4Q2jBANT5NLTieFq6EHK
-// Pool-USDC: 4MroHBr3m4zEsRKNGCCockwPSkqJacKoVLMknELWgSyi
-// Pool-BTC: 5eQBRPJtYAc29wQJtpWAhFCUsFwDZs2QdbahdZRC4CJT
-// Pool-mSOL: AEQagn3g3xqoatAuSxfMtnDU7qehsv1etyUTo6HFxFkx
-// Pool-LpSOL: 8XKjY2QVfnZrZAdBrycVSTgDQP9KujoQDowvdRpKFvzc
-// Pool-LpUSD: Ddk2z7KBieLv5vyadEGBwm7M2bqeSGRGpVCuSZmxCWtT
-// Bumps {
-//   stateAccount: 253,
-//   poolUsdc: 255,
-//   poolBtc: 255,
-//   poolLpsol: 255,
-//   poolLpusd: 254,
-//   poolMsol: 254
-// }
-
-// 2022-03-11 env
-// ProgramID 6KS4ho2CDvr7MGofHU6F6WJfQ5j6DL8nhBWJtkhMTzqt
-// State-Account: 4rU15gLvdV2SwfooxmTX13iRyE2ruCGyVn5p5QeZd5ks
-// Pool-USDC: 6sghnjhcQgw64uehscJtDPhsTdrQm7ty7ed2h6WhhyrC
-// Pool-BTC: DHzVDgbogJvs3L8UPFHxcYhL8LdmWBj8PcbUeph7J2CZ
-// Pool-mSOL: 9GwzM5FnVa7DHyqFYSeZzM39jN8TA21d5VskarV17cHU
-// Pool-LpSOL: 9qhUKBqqdvyeGmj7rPatdgyphgWFM7WY6n3r1R12Eu4b
-// Pool-LpUSD: 2XCUWyG6Bw5jMtYScSkpTFbhwRD8Y4MSiDLiekuUrW3o
-// Bumps {
-//   stateAccount: 255,
-//   poolUsdc: 255,
-//   poolBtc: 255,
-//   poolLpsol: 255,
-//   poolLpusd: 255,
-//   poolMsol: 255
-// }
-
-// 2022-03-11 env
-// ProgramID 6KS4ho2CDvr7MGofHU6F6WJfQ5j6DL8nhBWJtkhMTzqt
-// State-Account: DXkKu4JNp3QoPPrPWhQk9fXCDVwYjn3bJEfnHRJoJrC7
-// Pool-USDC: 73xGUk2R7cooqVqHdNsvEhmEdUxvmRAvtnoVrfV78Cvj
-// Pool-BTC: 6UPvPTsnYSNTHp1nuTESQPrQfhnpoe5gFHXxbj9daiMU
-// Pool-LpSOL: FpzXqnXjuUrYRhmGB27BMLxpRWHsE6e26J62EaDUvfmr
-// Pool-LpUSD: DCaRFdbkfHHCvMK2mv7o3ZFcTH1m9Nb9q89oKacghzqG
-// Bumps {
-//   stateAccount: 252,
-//   poolUsdc: 254,
-//   poolBtc: 254,
-//   poolLpsol: 250,
-//   poolLpusd: 255
-// }
+// 2022-04-13
+// ProgramID E3tXtRu4xvVCxUHiM9cEMpjhuSUXkNBd3gxr5RdKzSRw
+// Config:  CxdZdbyQUPRdu5rPNvP6nW39JnQMb3Yuo9TswvbNKXBL
+// State-Account: HnaQW5GKx9KR5XnFU6oHp89tDoTdnG1aB2RSzTqJ71XR
+// Pool-USDC: 2PEkt1Fyji31jdsDk1V53TErXdGUY244aXS8ww5Uyp4r
+// Pool-BTC: 4ZYQkhouzSmoXwMkAS44iUuoBdZpL6ZxZatcJVrRBQTv
+// Pool-mSOL: J2U9DJy4nSkzJwfdSTfpEqZDjb6ZZn7sF9cjyYHr7eeW
+// Pool-ETH: 3uLxAFtSAwgy6MqKVGx1RT9xBAyttaiGUwBJkjF5QgL7
+// Pool-UST: DUjLpkCGh6YfwsDmJboLE1QJDHKW2PDM6LGNPDmD3JQP
+// Pool-SRM: HLwnuihmcewXypJxZdfxyQxMS3NQnMwkQREqvBrYVJdp
+// Pool-SCNSOL: 4N9EhRyvzxwGN8gTSNyBCqZHiP1gAZYYpNcETChptDXf
+// Pool-STSOL: 2UHb9PHSXiqGbqUt1hySxeTe6BFSDrjc3Tq9cwTabQqK
+// Pool-USDT: 8fKwrDv8fQ1adgLXea6dpqGV1LVtZh1NHh4kHzBggNWU
+// Pool-LpSOL: CMjd7T5z3eTuCYcd7aXcJow4bRS29jWhF3DoT57YWYLq
+// Pool-LpUSD: 3Y2stxxHkLN7PeutAGmdvSyMHcdr1vyVW1QXw1bSZUBD
+// Pool-LpBTC: 4kobd9H4ViQ3eUBUxRXHGiT8zHBb1EWVRXtCy5xftdkw
+// Pool-LpETH: 8itfBdbVUWcEB55scjp37ShojbEuNLhgApm1jYwSd85M

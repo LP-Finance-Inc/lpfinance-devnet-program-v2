@@ -108,6 +108,15 @@ pub mod lpfinance_accounts {
         config_account.authority = new_authority;
         Ok(())
     }
+
+    pub fn update_cbs(
+        ctx: Context<UpdateConfig>,
+        new_cbs: Pubkey
+    ) -> Result<()> {
+        let config_account = &mut ctx.accounts.config;
+        config_account.cbsprogram = new_cbs;
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
