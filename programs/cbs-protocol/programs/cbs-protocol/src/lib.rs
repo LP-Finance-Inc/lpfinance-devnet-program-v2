@@ -27,6 +27,8 @@ const DOMINATOR:u128 = 100;
 const PREFIX: &str = "cbsprotocol2";
 
 const LENDING_PERCENT: u64 = 10;
+
+const LENDING_DENOMINATOR: u64 = 10000000;
 const W_THRESHHOLD: u64 = 90;
 const S_THRESHHOLD: u64 = 75;
 
@@ -144,6 +146,9 @@ pub mod cbs_protocol {
             return Err(ErrorCode::InsufficientAmount.into());
         }
 
+        let lending_amount = amount * LENDING_PERCENT / 100;
+        let pool_amount = amount - lending_amount;
+
         let cpi_accounts = Transfer {
             from: ctx.accounts.user_collateral.to_account_info(),
             to: ctx.accounts.collateral_pool.to_account_info(),
@@ -157,48 +162,140 @@ pub mod cbs_protocol {
         let user_account =&mut ctx.accounts.user_account;
         let config = &mut ctx.accounts.config;
 
+        if ctx.accounts.user_collateral.mint == config.btc_mint && 
+           ctx.accounts.user_collateral.mint == config.msol_mint && 
+           ctx.accounts.user_collateral.mint == config.usdc_mint && 
+           ctx.accounts.user_collateral.mint == config.eth_mint && 
+           ctx.accounts.user_collateral.mint == config.ust_mint && 
+           ctx.accounts.user_collateral.mint == config.srm_mint && 
+           ctx.accounts.user_collateral.mint == config.scnsol_mint && 
+           ctx.accounts.user_collateral.mint == config.stsol_mint && 
+           ctx.accounts.user_collateral.mint == config.usdt_mint {
+
+            let mut solend_higher = false;
+
+            if ctx.accounts.user_collateral.mint == config.btc_mint {
+                if ctx.accounts.solend_config.btc_rate > ctx.accounts.apricot_config.btc_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_collateral.mint == config.usdc_mint {
+                if ctx.accounts.solend_config.usdc_rate > ctx.accounts.apricot_config.usdc_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_collateral.mint == config.msol_mint {
+                if ctx.accounts.solend_config.msol_rate > ctx.accounts.apricot_config.msol_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_collateral.mint == config.eth_mint {
+                if ctx.accounts.solend_config.eth_rate > ctx.accounts.apricot_config.eth_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_collateral.mint == config.ust_mint {
+                solend_higher = true;
+            } else if ctx.accounts.user_collateral.mint == config.srm_mint {
+                if ctx.accounts.solend_config.srm_rate > ctx.accounts.apricot_config.srm_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_collateral.mint == config.scnsol_mint {
+                if ctx.accounts.solend_config.scnsol_rate > ctx.accounts.apricot_config.scnsol_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_collateral.mint == config.stsol_mint {
+                if ctx.accounts.solend_config.stsol_rate > ctx.accounts.apricot_config.stsol_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_collateral.mint == config.usdt_mint {
+                if ctx.accounts.solend_config.usdt_rate > ctx.accounts.apricot_config.usdt_rate {
+                    solend_higher = true;
+                }
+            } 
+
+            if solend_higher {
+                let cpi_program = ctx.accounts.solend_program.to_account_info();
+                let cpi_accounts = solend::cpi::accounts::DepositToken {
+                    authority: ctx.accounts.state_account.to_account_info(),
+                    user_token: ctx.accounts.collateral_pool.to_account_info(),
+                    token_mint: ctx.accounts.collateral_mint.to_account_info(),
+                    pool_token: ctx.accounts.solend_pool.to_account_info(),
+                    config: ctx.accounts.solend_config.to_account_info(),
+                    user_account: ctx.accounts.solend_account.to_account_info(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                    token_program: ctx.accounts.token_program.to_account_info(),
+                    rent: ctx.accounts.rent.to_account_info()
+                };
+                let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+    
+                solend::cpi::deposit_token(cpi_ctx, lending_amount)?;
+            } else {
+                let cpi_program = ctx.accounts.apricot_program.to_account_info();
+                let cpi_accounts = apricot::cpi::accounts::DepositToken {
+                    authority: ctx.accounts.state_account.to_account_info(),
+                    user_token: ctx.accounts.collateral_pool.to_account_info(),
+                    token_mint: ctx.accounts.collateral_mint.to_account_info(),
+                    pool_token: ctx.accounts.apricot_pool.to_account_info(),
+                    config: ctx.accounts.apricot_config.to_account_info(),
+                    user_account: ctx.accounts.apricot_account.to_account_info(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                    token_program: ctx.accounts.token_program.to_account_info(),
+                    rent: ctx.accounts.rent.to_account_info()
+                };
+                let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+    
+                apricot::cpi::deposit_token(cpi_ctx, lending_amount)?;
+            }
+        }
+
         if ctx.accounts.user_collateral.mint == config.btc_mint {
-            user_account.btc_amount = user_account.btc_amount + amount;
+            user_account.lending_btc_amount = lending_amount;
+            user_account.btc_amount = user_account.btc_amount + pool_amount;
             config.total_deposited_btc = config.total_deposited_btc + amount;
         }
 
         if ctx.accounts.user_collateral.mint == config.usdc_mint {
-            user_account.usdc_amount = user_account.usdc_amount + amount;
+            user_account.lending_usdc_amount = lending_amount;
+            user_account.usdc_amount = user_account.usdc_amount + pool_amount;
             config.total_deposited_usdc = config.total_deposited_usdc + amount;
         }
 
         if ctx.accounts.user_collateral.mint == config.msol_mint {
-            user_account.msol_amount = user_account.msol_amount + amount;
+            user_account.lending_msol_amount = lending_amount;
+            user_account.msol_amount = user_account.msol_amount + pool_amount;
             config.total_deposited_msol = config.total_deposited_msol + amount;
         }
         
         if ctx.accounts.user_collateral.mint == config.eth_mint {
-            user_account.eth_amount = user_account.eth_amount + amount;
+            user_account.lending_eth_amount = lending_amount;
+            user_account.eth_amount = user_account.eth_amount + pool_amount;
             config.total_deposited_eth = config.total_deposited_eth + amount;
         }
 
         if ctx.accounts.user_collateral.mint == config.ust_mint {
-            user_account.ust_amount = user_account.ust_amount + amount;
+            user_account.lending_ust_amount = lending_amount;
+            user_account.ust_amount = user_account.ust_amount + pool_amount;
             config.total_deposited_ust = config.total_deposited_ust + amount;
         }
 
         if ctx.accounts.user_collateral.mint == config.srm_mint {
-            user_account.srm_amount = user_account.srm_amount + amount;
+            user_account.lending_srm_amount = lending_amount;
+            user_account.srm_amount = user_account.srm_amount + pool_amount;
             config.total_deposited_srm = config.total_deposited_srm + amount;
         }
 
         if ctx.accounts.user_collateral.mint == config.scnsol_mint {
-            user_account.scnsol_amount = user_account.scnsol_amount + amount;
+            user_account.lending_scnsol_amount = lending_amount;
+            user_account.scnsol_amount = user_account.scnsol_amount + pool_amount;
             config.total_deposited_scnsol = config.total_deposited_scnsol + amount;
         }
         
         if ctx.accounts.user_collateral.mint == config.stsol_mint {
-            user_account.stsol_amount = user_account.stsol_amount + amount;
+            user_account.lending_stsol_amount = lending_amount;
+            user_account.stsol_amount = user_account.stsol_amount + pool_amount;
             config.total_deposited_stsol = config.total_deposited_stsol + amount;
         }
 
         if ctx.accounts.user_collateral.mint == config.usdt_mint {
-            user_account.usdt_amount = user_account.usdt_amount + amount;
+            user_account.lending_usdt_amount = lending_amount;
+            user_account.usdt_amount = user_account.usdt_amount + pool_amount;
             config.total_deposited_usdt = config.total_deposited_usdt + amount;
         }
 
@@ -308,44 +405,44 @@ pub mod cbs_protocol {
 
         // BTC price        
         let btc_price: u128 = get_price(ctx.accounts.pyth_btc_account.to_account_info())?;    
-        total_price += btc_price * user_account.btc_amount as u128;
+        total_price += btc_price * (user_account.btc_amount + user_account.lending_btc_amount )as u128;
 
         // SOL price
         let sol_price: u128 = get_price(ctx.accounts.pyth_sol_account.to_account_info())?;    
-        total_price += sol_price * user_account.sol_amount as u128;
+        total_price += sol_price * (user_account.sol_amount + user_account.lending_sol_amount ) as u128;
 
         // USDC price
         let usdc_price: u128 = get_price(ctx.accounts.pyth_usdc_account.to_account_info())?;
-        total_price += usdc_price * user_account.usdc_amount as u128;
+        total_price += usdc_price * (user_account.usdc_amount + user_account.lending_usdc_amount ) as u128;
 
         // mSOL price
         let msol_price: u128 = get_price(ctx.accounts.pyth_msol_account.to_account_info())?;
-        total_price += msol_price * user_account.msol_amount as u128;
+        total_price += msol_price * (user_account.msol_amount + user_account.lending_msol_amount ) as u128;
 
         // ETH price
         let eth_price: u128 = get_price(ctx.accounts.pyth_eth_account.to_account_info())?;
-        total_price += eth_price * user_account.eth_amount as u128;
+        total_price += eth_price * (user_account.eth_amount + user_account.lending_eth_amount ) as u128;
 
 
         // ust price        
         let ust_price: u128 = get_price(ctx.accounts.pyth_ust_account.to_account_info())?;    
-        total_price += ust_price * user_account.ust_amount as u128;
+        total_price += ust_price * (user_account.ust_amount + user_account.lending_ust_amount ) as u128;
 
         // srm price
         let srm_price: u128 = get_price(ctx.accounts.pyth_srm_account.to_account_info())?;    
-        total_price += srm_price * user_account.srm_amount as u128;
+        total_price += srm_price * (user_account.srm_amount + user_account.lending_srm_amount ) as u128;
 
         // scnsol price
         let scnsol_price: u128 = get_price(ctx.accounts.pyth_scnsol_account.to_account_info())?;
-        total_price += scnsol_price * user_account.scnsol_amount as u128;
+        total_price += scnsol_price * (user_account.scnsol_amount + user_account.lending_scnsol_amount ) as u128;
 
         // stsol price
         let stsol_price: u128 = get_price(ctx.accounts.pyth_stsol_account.to_account_info())?;
-        total_price += stsol_price * user_account.stsol_amount as u128;
+        total_price += stsol_price * (user_account.stsol_amount + user_account.lending_stsol_amount ) as u128;
 
         // usdt price
         let usdt_price: u128 = get_price(ctx.accounts.pyth_usdt_account.to_account_info())?;
-        total_price += usdt_price * user_account.usdt_amount as u128;
+        total_price += usdt_price * (user_account.usdt_amount + user_account.lending_usdt_amount ) as u128;
 
         // LpUSD price
         let lpusd_price = usdc_price;        
@@ -776,6 +873,9 @@ pub mod cbs_protocol {
         msg!("Withdraw Token");
 
         let user_account = &mut ctx.accounts.user_account;
+        let solend_config = &mut ctx.accounts.solend_config;
+        let apricot_config = &mut ctx.accounts.apricot_config;
+
         let sol_amount = user_account.sol_amount as u128;
         let btc_amount = user_account.btc_amount as u128;
         let usdc_amount = user_account.usdc_amount as u128;
@@ -786,6 +886,17 @@ pub mod cbs_protocol {
         let scnsol_amount = user_account.scnsol_amount as u128;
         let stsol_amount = user_account.stsol_amount as u128;
         let usdt_amount = user_account.usdt_amount as u128;
+
+        let lending_sol_amount = user_account.lending_sol_amount as u128;
+        let lending_btc_amount = user_account.lending_btc_amount as u128;
+        let lending_usdc_amount = user_account.lending_usdc_amount as u128;
+        let lending_msol_amount = user_account.lending_msol_amount as u128;
+        let lending_eth_amount = user_account.lending_eth_amount as u128;
+        let lending_ust_amount = user_account.lending_ust_amount as u128;
+        let lending_srm_amount = user_account.lending_srm_amount as u128;
+        let lending_scnsol_amount = user_account.lending_scnsol_amount as u128;
+        let lending_stsol_amount = user_account.lending_stsol_amount as u128;
+        let lending_usdt_amount = user_account.lending_usdt_amount as u128;
 
         let lpsol_amount = user_account.lpsol_amount as u128;
         let lpusd_amount = user_account.lpusd_amount as u128;
@@ -801,43 +912,43 @@ pub mod cbs_protocol {
 
         // BTC price
         let btc_price: u128 = get_price(ctx.accounts.pyth_btc_account.to_account_info())?;     
-        total_price += btc_price * btc_amount;
+        total_price += btc_price * (btc_amount + lending_btc_amount);
 
         // SOL price
         let sol_price: u128 = get_price(ctx.accounts.pyth_sol_account.to_account_info())?;     
-        total_price += sol_price * sol_amount;
+        total_price += sol_price * (sol_amount + lending_sol_amount);
 
         // USDC price
         let usdc_price: u128 = get_price(ctx.accounts.pyth_usdc_account.to_account_info())?;     
-        total_price += usdc_price * usdc_amount;
+        total_price += usdc_price * (usdc_amount + lending_usdc_amount);
 
         // mSOL price
         let msol_price: u128 = get_price(ctx.accounts.pyth_msol_account.to_account_info())?;
-        total_price += msol_price * msol_amount;
+        total_price += msol_price * (msol_amount + lending_msol_amount);
 
         // ETH price
         let eth_price: u128 = get_price(ctx.accounts.pyth_eth_account.to_account_info())?;   
-        total_price += eth_price * eth_amount;
+        total_price += eth_price * (eth_amount + lending_eth_amount);
 
         // ust price
         let ust_price: u128 = get_price(ctx.accounts.pyth_ust_account.to_account_info())?;     
-        total_price += ust_price * ust_amount;
+        total_price += ust_price * (ust_amount + lending_ust_amount);
 
         // srm price
         let srm_price: u128 = get_price(ctx.accounts.pyth_srm_account.to_account_info())?;     
-        total_price += srm_price * srm_amount;
+        total_price += srm_price * (srm_amount + lending_srm_amount);
 
         // scnsol price
         let scnsol_price: u128 = get_price(ctx.accounts.pyth_scnsol_account.to_account_info())?;     
-        total_price += scnsol_price * scnsol_amount;
+        total_price += scnsol_price * (scnsol_amount + lending_scnsol_amount);
 
         // stsol price
         let stsol_price: u128 = get_price(ctx.accounts.pyth_stsol_account.to_account_info())?;
-        total_price += stsol_price * stsol_amount;
+        total_price += stsol_price * (stsol_amount + lending_stsol_amount);
 
         // usdt price
         let usdt_price: u128 = get_price(ctx.accounts.pyth_usdt_account.to_account_info())?;   
-        total_price += usdt_price * usdt_amount;
+        total_price += usdt_price * (usdt_amount + lending_usdt_amount);
 
         // LpUSD price
         let lpusd_price = usdc_price;        
@@ -867,50 +978,101 @@ pub mod cbs_protocol {
         
         let mut dest_price:u128;
         let mut owned_amount:u128;
+        let mut require_lending_amount: u64 = 0;
+
         if ctx.accounts.dest_mint.key() == ctx.accounts.config.usdc_mint {
+            if solend_config.usdc_rate > apricot_config.usdc_rate {
+                owned_amount = usdc_amount + solend_config.usdc_rate as u128 * lending_usdc_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = solend_config.usdc_rate * lending_usdc_amount as u64 / LENDING_DENOMINATOR;
+            } else {
+                owned_amount = usdc_amount + apricot_config.usdc_rate as u128 * lending_usdc_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = apricot_config.usdc_rate * lending_usdc_amount as u64 / LENDING_DENOMINATOR;
+            }
             dest_price = usdc_price;
-            owned_amount = usdc_amount;
-            user_account.usdc_amount -= amount;
+            user_account.usdc_amount = owned_amount as u64 - amount;
             ctx.accounts.config.total_deposited_usdc -= amount;
         } else if ctx.accounts.dest_mint.key() == ctx.accounts.config.msol_mint {
+            if solend_config.msol_rate > apricot_config.msol_rate {
+                owned_amount = msol_amount + solend_config.msol_rate as u128 * lending_msol_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = solend_config.msol_rate * lending_msol_amount as u64 / LENDING_DENOMINATOR;
+            } else {
+                owned_amount = msol_amount + apricot_config.msol_rate as u128 * lending_msol_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = apricot_config.msol_rate * lending_msol_amount as u64 / LENDING_DENOMINATOR;
+            }
             dest_price = msol_price;
-            owned_amount = msol_amount;
-            user_account.msol_amount -= amount;
+            user_account.msol_amount = owned_amount as u64 - amount;
             ctx.accounts.config.total_deposited_msol -= amount;
         } else if ctx.accounts.dest_mint.key() == ctx.accounts.config.eth_mint {
+            if solend_config.eth_rate > apricot_config.eth_rate {
+                owned_amount = eth_amount + solend_config.eth_rate as u128 * lending_eth_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = solend_config.eth_rate * lending_eth_amount as u64 / LENDING_DENOMINATOR;
+            } else {
+                owned_amount = eth_amount + apricot_config.eth_rate as u128 * lending_eth_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = apricot_config.eth_rate * lending_eth_amount as u64 / LENDING_DENOMINATOR;
+            }
             dest_price = eth_price;
-            owned_amount = eth_amount;
-            user_account.eth_amount -= amount;
+            user_account.eth_amount = owned_amount as u64 - amount;
             ctx.accounts.config.total_deposited_eth -= amount;
         } else if ctx.accounts.dest_mint.key() == ctx.accounts.config.btc_mint {
+            if solend_config.btc_rate > apricot_config.btc_rate {
+                owned_amount = btc_amount + solend_config.btc_rate as u128 * lending_btc_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = solend_config.btc_rate * lending_btc_amount as u64 / LENDING_DENOMINATOR;
+            } else {
+                owned_amount = btc_amount + apricot_config.btc_rate as u128 * lending_btc_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = apricot_config.btc_rate * lending_btc_amount as u64 / LENDING_DENOMINATOR;
+            }
             dest_price = btc_price;
-            owned_amount = btc_amount;
-            user_account.btc_amount -= amount;
+            user_account.btc_amount = owned_amount as u64 - amount;
             ctx.accounts.config.total_deposited_btc -= amount;
         } else if ctx.accounts.dest_mint.key() == ctx.accounts.config.ust_mint {
+            owned_amount = ust_amount + solend_config.ust_rate as u128 * lending_ust_amount / LENDING_DENOMINATOR  as u128;
+            require_lending_amount = solend_config.ust_rate * lending_ust_amount as u64 / LENDING_DENOMINATOR;
             dest_price = ust_price;
-            owned_amount = ust_amount;
-            user_account.ust_amount -= amount;
+            user_account.ust_amount = owned_amount as u64 - amount;
             ctx.accounts.config.total_deposited_ust -= amount;
         } else if ctx.accounts.dest_mint.key() == ctx.accounts.config.srm_mint {
+            if solend_config.srm_rate > apricot_config.srm_rate {
+                owned_amount = srm_amount + solend_config.srm_rate as u128 * lending_srm_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = solend_config.srm_rate * lending_srm_amount as u64 / LENDING_DENOMINATOR;
+            } else {
+                owned_amount = srm_amount + apricot_config.srm_rate as u128 * lending_srm_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = apricot_config.srm_rate * lending_srm_amount as u64 / LENDING_DENOMINATOR;
+            }
             dest_price = srm_price;
-            owned_amount = srm_amount;
-            user_account.srm_amount -= amount;
+            user_account.srm_amount = owned_amount as u64 - amount;
             ctx.accounts.config.total_deposited_srm -= amount;
         } else if ctx.accounts.dest_mint.key() == ctx.accounts.config.scnsol_mint {
+            if solend_config.scnsol_rate > apricot_config.scnsol_rate {
+                owned_amount = scnsol_amount + solend_config.scnsol_rate as u128 * lending_scnsol_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = solend_config.scnsol_rate * lending_scnsol_amount as u64 / LENDING_DENOMINATOR;
+            } else {
+                owned_amount = scnsol_amount + apricot_config.scnsol_rate as u128 * lending_scnsol_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = apricot_config.scnsol_rate * lending_scnsol_amount as u64 / LENDING_DENOMINATOR;
+            }
             dest_price = scnsol_price;
-            owned_amount = scnsol_amount;
-            user_account.scnsol_amount -= amount;
+            user_account.scnsol_amount = owned_amount as u64 - amount;
             ctx.accounts.config.total_deposited_scnsol -= amount;
         } else if ctx.accounts.dest_mint.key() == ctx.accounts.config.stsol_mint {
+            if solend_config.stsol_rate > apricot_config.stsol_rate {
+                owned_amount = stsol_amount + solend_config.stsol_rate as u128 * lending_stsol_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = solend_config.stsol_rate * lending_stsol_amount as u64 / LENDING_DENOMINATOR;
+            } else {
+                owned_amount = stsol_amount + apricot_config.stsol_rate as u128 * lending_stsol_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = apricot_config.stsol_rate * lending_stsol_amount as u64 / LENDING_DENOMINATOR;
+            }
             dest_price = stsol_price;
-            owned_amount = stsol_amount;
-            user_account.stsol_amount -= amount;
+            user_account.stsol_amount = owned_amount as u64 - amount;
             ctx.accounts.config.total_deposited_stsol -= amount;
         } else if ctx.accounts.dest_mint.key() == ctx.accounts.config.usdt_mint {
+            if solend_config.usdt_rate > apricot_config.usdt_rate {
+                owned_amount = usdt_amount + solend_config.usdt_rate as u128 * lending_usdt_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = solend_config.usdt_rate * lending_usdt_amount as u64 / LENDING_DENOMINATOR;
+            } else {
+                owned_amount = usdt_amount + apricot_config.usdt_rate as u128 * lending_usdt_amount / LENDING_DENOMINATOR  as u128;
+                require_lending_amount = apricot_config.usdt_rate * lending_usdt_amount as u64 / LENDING_DENOMINATOR;
+            }
             dest_price = usdt_price;
-            owned_amount = usdt_amount;
-            user_account.usdt_amount -= amount;
+            user_account.usdt_amount = owned_amount as u64 - amount;
             ctx.accounts.config.total_deposited_usdt -= amount;
         } else if ctx.accounts.dest_mint.key() == ctx.accounts.config.lpbtc_mint {
             dest_price = lpbtc_price;
@@ -950,6 +1112,92 @@ pub mod cbs_protocol {
         
         if program_authority != ctx.accounts.state_account.to_account_info().key() {
             return Err(ErrorCode::InvalidOwner.into());
+        }
+
+        let config = &mut ctx.accounts.config;
+        if ctx.accounts.user_dest.mint == config.btc_mint && 
+           ctx.accounts.user_dest.mint == config.msol_mint && 
+           ctx.accounts.user_dest.mint == config.usdc_mint && 
+           ctx.accounts.user_dest.mint == config.eth_mint && 
+           ctx.accounts.user_dest.mint == config.ust_mint && 
+           ctx.accounts.user_dest.mint == config.srm_mint && 
+           ctx.accounts.user_dest.mint == config.scnsol_mint && 
+           ctx.accounts.user_dest.mint == config.stsol_mint && 
+           ctx.accounts.user_dest.mint == config.usdt_mint {
+
+            let mut solend_higher = false;
+
+            if ctx.accounts.user_dest.mint == config.btc_mint {
+                if ctx.accounts.solend_config.btc_rate > ctx.accounts.apricot_config.btc_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_dest.mint == config.usdc_mint {
+                if ctx.accounts.solend_config.usdc_rate > ctx.accounts.apricot_config.usdc_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_dest.mint == config.msol_mint {
+                if ctx.accounts.solend_config.msol_rate > ctx.accounts.apricot_config.msol_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_dest.mint == config.eth_mint {
+                if ctx.accounts.solend_config.eth_rate > ctx.accounts.apricot_config.eth_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_dest.mint == config.ust_mint {
+                solend_higher = true;
+            } else if ctx.accounts.user_dest.mint == config.srm_mint {
+                if ctx.accounts.solend_config.srm_rate > ctx.accounts.apricot_config.srm_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_dest.mint == config.scnsol_mint {
+                if ctx.accounts.solend_config.scnsol_rate > ctx.accounts.apricot_config.scnsol_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_dest.mint == config.stsol_mint {
+                if ctx.accounts.solend_config.stsol_rate > ctx.accounts.apricot_config.stsol_rate {
+                    solend_higher = true;
+                }
+            } else if ctx.accounts.user_dest.mint == config.usdt_mint {
+                if ctx.accounts.solend_config.usdt_rate > ctx.accounts.apricot_config.usdt_rate {
+                    solend_higher = true;
+                }
+            } 
+
+            if solend_higher {
+                let cpi_program = ctx.accounts.solend_program.to_account_info();
+                let cpi_accounts = solend::cpi::accounts::WithdrawToken {
+                    authority: ctx.accounts.state_account.to_account_info(),
+                    user_token: ctx.accounts.dest_pool.to_account_info(),
+                    token_mint: ctx.accounts.dest_mint.to_account_info(),
+                    pool_token: ctx.accounts.solend_pool.to_account_info(),
+                    config: ctx.accounts.solend_config.to_account_info(),
+                    user_account: ctx.accounts.solend_account.to_account_info(),
+                    state_account: ctx.accounts.solend_state_account.to_account_info(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                    token_program: ctx.accounts.token_program.to_account_info(),
+                    rent: ctx.accounts.rent.to_account_info()
+                };
+                let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+    
+                solend::cpi::withdraw_token(cpi_ctx, require_lending_amount)?;
+            } else {
+                let cpi_program = ctx.accounts.apricot_program.to_account_info();
+                let cpi_accounts = apricot::cpi::accounts::WithdrawToken {
+                    authority: ctx.accounts.state_account.to_account_info(),
+                    user_token: ctx.accounts.dest_pool.to_account_info(),
+                    token_mint: ctx.accounts.dest_mint.to_account_info(),
+                    pool_token: ctx.accounts.apricot_pool.to_account_info(),
+                    state_account: ctx.accounts.apricot_state_account.to_account_info(),
+                    config: ctx.accounts.apricot_config.to_account_info(),
+                    user_account: ctx.accounts.apricot_account.to_account_info(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                    token_program: ctx.accounts.token_program.to_account_info(),
+                    rent: ctx.accounts.rent.to_account_info()
+                };
+                let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+    
+                apricot::cpi::withdraw_token(cpi_ctx, require_lending_amount)?;
+            }
         }
 
         let seeds = &[
@@ -1282,6 +1530,26 @@ pub struct WithdrawToken<'info> {
     pub pyth_scnsol_account: AccountInfo<'info>,
     pub pyth_stsol_account: AccountInfo<'info>,
     pub pyth_usdt_account: AccountInfo<'info>,
+
+    #[account(mut)]
+    pub solend_config: Box<Account<'info, solend::Config>>,
+    #[account(mut)]
+    pub solend_pool: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub solend_account: Box<Account<'info, solend::UserAccount>>,
+    #[account(mut)]
+    pub solend_state_account: Box<Account<'info, solend::StateAccount>>,
+    #[account(mut)]
+    pub apricot_config: Box<Account<'info, apricot::Config>>,
+    #[account(mut)]
+    pub apricot_pool: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub apricot_account: Box<Account<'info, apricot::UserAccount>>,
+    #[account(mut)]
+    pub apricot_state_account: Box<Account<'info, apricot::StateAccount>>,
+    pub solend_program: Program<'info, Solend>,
+    pub apricot_program: Program<'info, Apricot>,
+
     // Programs and Sysvars
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
@@ -1555,6 +1823,9 @@ pub struct DepositCollateral<'info> {
     pub apricot_pool: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub apricot_account: Box<Account<'info, apricot::UserAccount>>,
+    pub solend_program: Program<'info, Solend>,
+    pub apricot_program: Program<'info, Apricot>,
+
     #[account(mut)]
     pub accounts_config: Box<Account<'info, lpfinance_accounts::Config>>,
     pub accounts_program: Program<'info, LpfinanceAccounts>,
@@ -1886,6 +2157,19 @@ pub struct UserAccount {
     pub lpusd_amount: u64,
     pub lpeth_amount: u64,
     pub lpbtc_amount: u64,
+
+
+    pub lending_btc_amount: u64,
+    pub lending_sol_amount: u64,
+    pub lending_usdc_amount: u64,
+    pub lending_eth_amount: u64,
+    pub lending_msol_amount: u64,
+    pub lending_ust_amount: u64,
+    pub lending_srm_amount: u64,
+    pub lending_scnsol_amount: u64,
+    pub lending_stsol_amount: u64,
+    pub lending_usdt_amount: u64,
+
     pub owner: Pubkey,
     pub bump: u8
 }

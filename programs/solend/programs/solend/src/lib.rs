@@ -33,6 +33,7 @@ pub mod solend {
         config.stsol_mint = ctx.accounts.stsol_mint.key();
         config.btc_mint = ctx.accounts.btc_mint.key();
         config.usdt_mint = ctx.accounts.usdt_mint.key();
+        config.eth_mint = ctx.accounts.eth_mint.key();
 
         config.state_account = ctx.accounts.state_account.key();
 
@@ -56,6 +57,7 @@ pub mod solend {
         user_account.stsol_amount = 0;
         user_account.btc_amount = 0;
         user_account.usdt_amount = 0;
+        user_account.eth_amount = 0;
 
         Ok(())
     }
@@ -122,6 +124,11 @@ pub mod solend {
             
             user_account.usdt_amount = sum;
             config.usdt_amount = config.usdt_amount + amount;
+        } else if config.eth_mint == ctx.accounts.token_mint.key() {
+            let sum = user_account.eth_amount + amount * DENOMINATOR / config.eth_rate;
+            
+            user_account.eth_amount = sum;
+            config.eth_amount = config.eth_amount + amount;
         }
 
         Ok(())
@@ -225,6 +232,17 @@ pub mod solend {
             let remain_amount = (withdrawable_amount - amount) * DENOMINATOR / config.usdt_rate;
             config.usdt_amount = config.usdt_amount - amount;
             user_account.usdt_amount = remain_amount;
+        } else if config.eth_mint == ctx.accounts.token_mint.key() {
+            
+            let withdrawable_amount = user_account.eth_amount * config.eth_rate / DENOMINATOR;
+        
+            if amount > withdrawable_amount {
+                return Err(ErrorCode::ExceedAmount.into());
+            }
+
+            let remain_amount = (withdrawable_amount - amount) * DENOMINATOR / config.eth_rate;
+            config.eth_amount = config.eth_amount - amount;
+            user_account.eth_amount = remain_amount;
         } else {
             return Err(ErrorCode::InvalidToken.into())
         }
@@ -342,6 +360,14 @@ pub mod solend {
             config.usdt_amount = config.usdt_amount + reward_amount;
             config.usdt_rate = rate_will;
             mint_amount = reward_amount;
+        } else if config.eth_mint == ctx.accounts.token_mint.key() {
+            let reward_amount = config.eth_amount * (rate - DENOMINATOR) / DENOMINATOR;
+
+            let rate_will = config.eth_rate * rate  / DENOMINATOR;
+
+            config.eth_amount = config.eth_amount + reward_amount;
+            config.eth_rate = rate_will;
+            mint_amount = reward_amount;
         } else {
             return Err(ErrorCode::InvalidToken.into())
         }
@@ -422,6 +448,7 @@ pub struct Initialize<'info> {
     pub stsol_mint: Box<Account<'info, Mint>>,
     pub btc_mint: Box<Account<'info, Mint>>,
     pub usdt_mint: Box<Account<'info, Mint>>,
+    pub eth_mint: Box<Account<'info, Mint>>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
@@ -552,6 +579,7 @@ pub struct Config {
     pub stsol_mint: Pubkey,
     pub btc_mint: Pubkey,
     pub usdt_mint: Pubkey,
+    pub eth_mint: Pubkey,
     //
     pub ust_amount: u64,
     pub usdc_amount: u64,
@@ -561,6 +589,7 @@ pub struct Config {
     pub stsol_amount: u64,
     pub btc_amount: u64,
     pub usdt_amount: u64,
+    pub eth_amount: u64,
     //
     pub ust_rate: u64,
     pub usdc_rate: u64,
@@ -570,6 +599,7 @@ pub struct Config {
     pub stsol_rate: u64,
     pub btc_rate: u64,
     pub usdt_rate: u64,
+    pub eth_rate: u64,
     // 
     pub last_mint_timestamp: i64
 }
@@ -585,7 +615,8 @@ pub struct UserAccount {
     pub scnsol_amount: u64,
     pub stsol_amount: u64,
     pub btc_amount: u64,
-    pub usdt_amount: u64
+    pub usdt_amount: u64,
+    pub eth_amount: u64
 }
 
 #[error_code]
