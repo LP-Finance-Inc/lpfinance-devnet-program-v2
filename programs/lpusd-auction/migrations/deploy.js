@@ -11,7 +11,7 @@ const idl = require("../target/idl/lpusd_auction.json");
 const programID = idl.metadata.address;
 
 console.log("ProgramID", programID);
-const PREFIX = "lpauction0";
+const PREFIX = "lpauction1";
 
 const pool_usdc = "pool_usdc";
 const pool_btc = "pool_btc";
@@ -222,6 +222,24 @@ module.exports = async function (provider) {
     console.log("Transaction error: ", err);
   }
 }
+
+// 2022-04-22
+// ProgramID E3tXtRu4xvVCxUHiM9cEMpjhuSUXkNBd3gxr5RdKzSRw
+// Config:  FmmL9SpBpqoKSFkVSvFGvnvjfRQSQdcVyf14EPtMhndy
+// State-Account: 4MBP9X23dnbkMCSpfzWM35RL4EBW5KZeSMBk2cT5Scib
+// Pool-USDC: ExK7L4CsoNxuUPrZduzkFUHbbD2C6bvqy6gngvfeCrKp
+// Pool-BTC: H2ptCGgYjcLYN5w2cxvMqH3iYHbPvqs46HjDZbinbBHg
+// Pool-mSOL: FugfVX5RdVnLw3eK9trqKQuUNEzfjUSfvFVMakGmeuVU
+// Pool-ETH: 4R8UrgMZA3iRM3a2sJBoVj7WhQ3iaHMpbo8AfmPKK7WL
+// Pool-UST: 3bqo2EvgPCLfCQaLwNpZDVEjBMrdDx3zWuKYazmCXxpg
+// Pool-SRM: 8uUGbveHYqR8FTJW2wsxdWhfrM1v6ccHZ7aqZ3uidzAX
+// Pool-SCNSOL: Danmrm7wQRhWcyKUo3jCQeGJ5Y74TTpE12DgNSainD1g
+// Pool-STSOL: 7Uf2BmQCkXBMTFeYjd2drpsVvH26nTn6WSkDKMBj7ikw
+// Pool-USDT: FkMG944tx3rf8metjMLSwrXNPEZRqHN19fyRLtfWjuub
+// Pool-LpSOL: ENo5wAq3gu6z1Zx3sNu78SzNW7i5DT7QNQXG2jgkHRUe
+// Pool-LpUSD: ExUTzEhxKzaScnrfLWuzM9QANeNVJgsB1yqb8PTDzAtZ
+// Pool-LpBTC: 4mnqb4fqTiKMtZUNwAuawLq4gv4EneMvwbqycVM7iD7z
+// Pool-LpETH: 9J2NYhg6wGHmAHygKP5i5kpfqkthWMVhjeRGrn1xfBSw
 
 // 2022-04-13
 // ProgramID E3tXtRu4xvVCxUHiM9cEMpjhuSUXkNBd3gxr5RdKzSRw

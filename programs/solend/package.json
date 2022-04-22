@@ -1,6 +1,6 @@
 {
     "scripts": {
-        "update-idl": "cp ./target/idl/solend.json ../../../devnet-app-v1/src/idls/solend.json"
+        "update-idl": "cp ./target/idl/solend.json ../../../devnet-app-v2/src/idls/solend.json"
     },
     "dependencies": {
         "@project-serum/anchor": "^0.22.0",

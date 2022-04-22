@@ -1,6 +1,6 @@
 {
     "scripts": {
-        "update-idl": "cp ./target/idl/apricot.json ../../../devnet-app-v1/src/idls/apricot.json"
+        "update-idl": "cp ./target/idl/apricot.json ../../../devnet-app-v2/src/idls/apricot.json"
     },
     "dependencies": {
         "@project-serum/anchor": "^0.22.0",

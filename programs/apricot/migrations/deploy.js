@@ -6,11 +6,11 @@ const anchor = require("@project-serum/anchor");
 const { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, Token } = require('@solana/spl-token')
 const { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Keypair } = anchor.web3;
 
-const idl = require("../target/idl/solend.json");
+const idl = require("../target/idl/apricot.json");
 const programID = idl.metadata.address;
 
 console.log("ProgramID", programID);
-const PREFIX = "solend0";
+const PREFIX = "apricot0";
 
 const pool_usdc = "pool_usdc";
 const pool_btc = "pool_btc";
@@ -33,6 +33,7 @@ const scnsolMint = new PublicKey("GXFmXhwBMfXq5utccyNcQRrfQuBVjjprHKSqLzi3P7vn")
 const stsolMint = new PublicKey("CJGeMYvL7s2k8VHooJ1JvgZsCJqrSEExmPkpFBZskAfV");
 const usdtMint = new PublicKey("DpsmMkLP5yAeBSh7yAMHNuBurLnc8LNxvoddAoKo27dk");
 
+
 module.exports = async function (provider) {
   // Configure client to use the provider.
   anchor.setProvider(provider);
@@ -44,7 +45,7 @@ module.exports = async function (provider) {
 
     // Signer
     const authority = provider.wallet.publicKey;       
-    const config = new PublicKey('EG3zgt7HjmyA5y6urhw9AiEWNvEfPHLNZgHG2KCNscon');
+    const config = new PublicKey('7q2j82XkdWDpQVj7cogxX64fGvtpUqDFKQUUVdgiKvdP');
     const [stateAccount, stateAccountBump] = await PublicKey.findProgramAddress(
       [Buffer.from(PREFIX)],
       program.programId
@@ -80,7 +81,7 @@ module.exports = async function (provider) {
 //       [Buffer.from(PREFIX), Buffer.from(user.toBuffer())],
 //       program.programId
 //     );
-//     console.log("CBS solend account", userAccount.toBase58());
+//     console.log("CBS apricot account", userAccount.toBase58());
 
 //     // initUserAccount
 //     await program.rpc.initUserAccount({
@@ -145,13 +146,6 @@ module.exports = async function (provider) {
 //     );
 //     console.log("Pool-MSOL:", poolMsol.toBase58());
 
-//     // Find PDA for `ust pool`
-//     const [poolUst, poolUstBump] = await PublicKey.findProgramAddress(
-//       [Buffer.from(PREFIX), Buffer.from(pool_ust)],
-//       program.programId
-//     );
-//     console.log("Pool-UST:", poolUst.toBase58());
-
 //     // Find PDA for `srm pool`
 //     const [poolSrm, poolSrmBump] = await PublicKey.findProgramAddress(
 //       [Buffer.from(PREFIX), Buffer.from(pool_srm)],
@@ -202,7 +196,6 @@ module.exports = async function (provider) {
 //         poolEth,
 //         poolBtc,
 //         poolMsol,
-//         poolUst,
 //         poolSrm,
 //         poolScnsol,
 //         poolStsol,
@@ -219,17 +212,17 @@ module.exports = async function (provider) {
 //   }
 // }
 
-// CBS solend account 37xCKPErUb9q625EaofefgS2pTVQkHxugPjQykPmYmQF
+// 2022-04-22
+// CBS apricot account : A7Y1R2jPsS3rGHZiXEcCXRByLBZtvv1b46BZEjeYYhiu
 
-// ProgramID CwB4GeieH48q4p864wammdzFYBMNWopYRQPYkS8zbZwL
-// Config:  EG3zgt7HjmyA5y6urhw9AiEWNvEfPHLNZgHG2KCNscon
-// State-Account: 9rKSqNo2AfTGj6rbiZ3kWXBGKg6unGnMKLSsCYNpQ8iG
-// Pool-ETH: 2KpBSwfKpeipbVMApf5ed4tD943LwoDwtaV541mEM9A2
-// Pool-USDC: PN9fZopu5q7XKrK7N3kmxznDF4gw4qgpgDj9YA52uMD
-// Pool-BTC: 7pACpuf3PxBurF4BF5JukQqJkZK1CUFf3SmvsMKBYZDY
-// Pool-MSOL: HjKVfq9xeqAqv4GTa6wCDZHsNuCenJBaLetLhF4Nk59Q
-// Pool-UST: FYccwVZ4kYqePG8VyGFrBYqAsJNdvSDf5Z6FZNUx8DfR
-// Pool-SRM: 4LALBawUGE54jgKD42Pf92PLa9nsagRPLXgHwcsjKi4n
-// Pool-SCNSOL: 8RRsFhRVZjrCn1xhtHnNPzpGuxtjhw5bZLvkmG7ihYs
-// Pool-STSOL: GDdhUP6XWgsVp3FaLhZTVNSGRV72ZbD1k3m4Vq5eCcYG
-// Pool-USDT: 8n2uPU7UTQJjGdrtVYkTUCGmXeECY7B5TeDySZLN1xA4
+// ProgramID DDr65T1xJYmBi8M8sqEcitEbLSEboXMG1t3JNvYZk8Nx
+// Config:  7q2j82XkdWDpQVj7cogxX64fGvtpUqDFKQUUVdgiKvdP
+// State-Account: DaYiw3X7Vt3upbKXWciETvbo72TZF9y9sVan6TySnzbn
+// Pool-ETH: DNAUfAwU9u4knVgSkrQiedDWCG5cycMNfDzEyTQVkXXG
+// Pool-USDC: HWK6BKu1G7pUDJSwXXb5DfLtGdc3JTmzfKXN91dW7jiM
+// Pool-BTC: DJ78qgpXMADf56pYgxqPEYV82QMRgah5ma1MEEQ1eYCe
+// Pool-MSOL: AzkMZoUv3Ni8jtNSkbdkEXZh6D5TdKfMoQbqEBbqfGtZ
+// Pool-SRM: Cp51w8YVX8nP8d4zBf7dSEtd4pWVVUgiw7c7abubyoux
+// Pool-SCNSOL: DH6uU98QuuA56NJutgtJxApCc9ffsbGWuV9AJAg9X8vS
+// Pool-STSOL: 9BRojuywXGhms3QGGNrCiWZynuSKGGzhwv9abdwfpEck
+// Pool-USDT: 9LMiXJAKBTtxQWCARbRdNSE28iAGkMqgq8sxWHqVP8Rn

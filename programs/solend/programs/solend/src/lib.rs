@@ -35,6 +35,16 @@ pub mod solend {
         config.usdt_mint = ctx.accounts.usdt_mint.key();
         config.eth_mint = ctx.accounts.eth_mint.key();
 
+        config.ust_rate = DENOMINATOR;
+        config.usdc_rate = DENOMINATOR;
+        config.msol_rate = DENOMINATOR;
+        config.srm_rate = DENOMINATOR;
+        config.scnsol_rate = DENOMINATOR;
+        config.stsol_rate = DENOMINATOR;
+        config.btc_rate = DENOMINATOR;
+        config.usdt_rate = DENOMINATOR;
+        config.eth_rate = DENOMINATOR;
+
         config.state_account = ctx.accounts.state_account.key();
 
         Ok(())
@@ -47,7 +57,7 @@ pub mod solend {
         // Make as 1 string for pubkey
 
         let user_account = &mut ctx.accounts.user_account;
-        user_account.owner = ctx.accounts.user_authority.key();
+        user_account.owner = ctx.accounts.user.key();
 
         user_account.ust_amount = 0;
         user_account.usdc_amount = 0;
@@ -58,7 +68,7 @@ pub mod solend {
         user_account.btc_amount = 0;
         user_account.usdt_amount = 0;
         user_account.eth_amount = 0;
-
+        
         Ok(())
     }
 
@@ -420,6 +430,29 @@ pub mod solend {
 
         Ok(())
     }
+
+    pub fn update_rate(
+        ctx: Context<UpdateConfigAccount>
+    ) -> Result<()> {
+        let state_account = &mut ctx.accounts.state_account;
+        let config =  &mut ctx.accounts.config;
+        
+        if state_account.owner != ctx.accounts.owner.key() {
+            return Err(ErrorCode::InvalidOwner.into());
+        }
+
+        config.ust_rate = DENOMINATOR;
+        config.usdc_rate = DENOMINATOR;
+        config.msol_rate = DENOMINATOR;
+        config.srm_rate = DENOMINATOR;
+        config.scnsol_rate = DENOMINATOR;
+        config.stsol_rate = DENOMINATOR;
+        config.btc_rate = DENOMINATOR;
+        config.usdt_rate = DENOMINATOR;
+        config.eth_rate = DENOMINATOR;
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -450,6 +483,97 @@ pub struct Initialize<'info> {
     pub usdt_mint: Box<Account<'info, Mint>>,
     pub eth_mint: Box<Account<'info, Mint>>,
 
+    // USDC POOL
+    #[account(
+        init,
+        token::mint = usdc_mint,
+        token::authority = state_account,
+        seeds = [PREFIX.as_bytes(), b"pool_usdc".as_ref()],
+        bump,
+        payer = authority
+    )]
+    pub pool_usdc: Box<Account<'info, TokenAccount>>,
+    // USDC POOL
+    #[account(
+        init,
+        token::mint = eth_mint,
+        token::authority = state_account,
+        seeds = [PREFIX.as_bytes(), b"pool_eth".as_ref()],
+        bump,
+        payer = authority
+    )]
+    pub pool_eth: Box<Account<'info, TokenAccount>>,
+    // BTC POOL
+    #[account(
+        init,
+        token::mint = btc_mint,
+        token::authority = state_account,
+        seeds = [PREFIX.as_bytes(), b"pool_btc".as_ref()],
+        bump,
+        payer = authority
+    )]
+    pub pool_btc: Box<Account<'info, TokenAccount>>,
+    // mSOL POOL
+    #[account(
+        init,
+        token::mint = msol_mint,
+        token::authority = state_account,
+        seeds = [PREFIX.as_bytes(), b"pool_msol".as_ref()],
+        bump,
+        payer = authority
+    )]
+    pub pool_msol: Box<Account<'info, TokenAccount>>,
+    // UST POOL
+    #[account(
+        init,
+        token::mint = ust_mint,
+        token::authority = state_account,
+        seeds = [PREFIX.as_bytes(), b"pool_ust".as_ref()],
+        bump,
+        payer = authority
+    )]
+    pub pool_ust: Box<Account<'info, TokenAccount>>,
+    // srm POOL
+    #[account(
+        init,
+        token::mint = srm_mint,
+        token::authority = state_account,
+        seeds = [PREFIX.as_bytes(), b"pool_srm".as_ref()],
+        bump,
+        payer = authority
+    )]
+    pub pool_srm: Box<Account<'info, TokenAccount>>,
+    // scnsol POOL
+    #[account(
+        init,
+        token::mint = scnsol_mint,
+        token::authority = state_account,
+        seeds = [PREFIX.as_bytes(), b"pool_scnsol".as_ref()],
+        bump,
+        payer = authority
+    )]
+    pub pool_scnsol: Box<Account<'info, TokenAccount>>,
+    // stsol POOL
+    #[account(
+        init,
+        token::mint = stsol_mint,
+        token::authority = state_account,
+        seeds = [PREFIX.as_bytes(), b"pool_stsol".as_ref()],
+        bump,
+        payer = authority
+    )]
+    pub pool_stsol: Box<Account<'info, TokenAccount>>,
+    // usdt POOL
+    #[account(
+        init,
+        token::mint = usdt_mint,
+        token::authority = state_account,
+        seeds = [PREFIX.as_bytes(), b"pool_usdt".as_ref()],
+        bump,
+        payer = authority
+    )]
+    pub pool_usdt: Box<Account<'info, TokenAccount>>,
+
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>
@@ -460,11 +584,13 @@ pub struct InitUserAccount<'info> {
     // State account for each user/wallet
     #[account(
         init,
-        seeds = [PREFIX.as_bytes(), user_authority.key().as_ref()],
+        seeds = [PREFIX.as_bytes(), user.key().as_ref()],
         bump,
         payer = user_authority
     )]
-    pub user_account: Account<'info, UserAccount>,
+    pub user_account: Box<Account<'info, UserAccount>>,
+    
+    pub user: AccountInfo<'info>,
     // Contract Authority accounts
     #[account(mut)]
     pub user_authority: Signer<'info>,
@@ -481,11 +607,11 @@ pub struct DepositToken<'info> {
         constraint = user_token.mint == token_mint.key(),
         constraint = user_token.owner == authority.key()
     )]
-    pub user_token: Account<'info, TokenAccount>,
+    pub user_token: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
-    pub token_mint: Account<'info, Mint>,
+    pub token_mint: Box<Account<'info, Mint>>,
     #[account(mut)]
-    pub pool_token: Account<'info, TokenAccount>,
+    pub pool_token: Box<Account<'info, TokenAccount>>,
     // State Accounts
     #[account(mut)]
     pub config: Box<Account<'info, Config>>,
@@ -504,11 +630,11 @@ pub struct WithdrawToken<'info> {
         constraint = user_token.mint == token_mint.key(),
         constraint = user_token.owner == authority.key()
     )]
-    pub user_token: Account<'info, TokenAccount>,
+    pub user_token: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
-    pub token_mint: Account<'info, Mint>,
+    pub token_mint: Box<Account<'info, Mint>>,
     #[account(mut)]
-    pub pool_token: Account<'info, TokenAccount>,
+    pub pool_token: Box<Account<'info, TokenAccount>>,
     // State Accounts
     #[account(mut)]
     pub state_account: Box<Account<'info, Config>>,

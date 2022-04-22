@@ -76,7 +76,7 @@ module.exports = async function (provider) {
     // const configAccount = anchor.web3.Keypair.generate();
     // console.log("Config: ", configAccount.publicKey.toBase58());
     const config = new PublicKey("2KoT2ifTjzWd773nUa9aZD6fTVzD9kJgzddLbCFbVU71");
-    const cbs_account = new PublicKey("HeuPo1nG7uVQhNmBUxmJAyTsCPN9F99uyuC1UdeGMhZe");
+    const cbs_account = new PublicKey("HKakh92meu61n3kchSPpNDveCwHno9ymeamN9yZbXt1z");
     await program.rpc.updateCbsAccount(cbs_account, {
       accounts: {
         owner: authority,

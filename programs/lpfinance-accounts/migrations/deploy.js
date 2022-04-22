@@ -10,7 +10,7 @@ const programID = idl.metadata.address;
 
 console.log("ProgramID", programID);
 
-const cbsprogram = new PublicKey("Fe3ssjryG7wW7aC7PnTrA8w6TJSKs8CbV3DjoCjJJsdw"); 
+const cbsprogram = new PublicKey("HKakh92meu61n3kchSPpNDveCwHno9ymeamN9yZbXt1z"); 
 const BIG_WHITELIST_LEN = 500;
 
 module.exports = async function (provider) {
@@ -82,6 +82,11 @@ module.exports = async function (provider) {
     console.log("Transaction error: ", err);
   }
 }
+
+// 2022-04-22 devnet
+// ProgramID 6gUZGnEHSjVmZ3dq99wd7Ut8ER7PSoEAqPjFfjPKkuMv
+// ConfigAccount: 9EzbCTagJ1Xxfb5T5HLu1voN5HcMN6SfeCyod2KhAvgG
+// WhiteListAccount: 6QDWT8jYDCTx5zrpqNmtm3SpHUZuEn8wVXW7WESqmpd9
 
 // 2022-04-07 devnet
 // ProgramID 6gUZGnEHSjVmZ3dq99wd7Ut8ER7PSoEAqPjFfjPKkuMv

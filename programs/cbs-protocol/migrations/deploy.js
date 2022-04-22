@@ -10,7 +10,7 @@ const idl = require("../target/idl/cbs_protocol.json");
 const programID = idl.metadata.address;
 
 console.log("ProgramID", programID);
-const PREFIX = "cbsprotocol2";
+const PREFIX = "cbsprotocol3";
 
 const pool_usdc = "pool_usdc";
 const pool_btc = "pool_btc";
@@ -251,6 +251,24 @@ module.exports = async function (provider) {
   }
 }
 
+// 2022-04-22
+// ProgramID 3f39cgs9wPLVv4vGySNecjKtefe5MJYkFEEj3v6bPequ
+// Config:  4mND9qtpmZN5fEk48TMy2tUEaSh5QFGL64ruFXMwuwRA
+// State-Account: HKakh92meu61n3kchSPpNDveCwHno9ymeamN9yZbXt1z
+// Pool-ETH: 5N45aAx4aAj5CmD5wiievuG9bnY3wwzLNzXUdgsXhpy
+// Pool-USDC: HoKqptd4zJzE5w5RvAXt39hHs4WDFvXnSry8xyedrrYc
+// Pool-BTC: J1bgGA5Khj3t9bPepVpS6rPD5o1Pa4JdxypWJQrXt6Zu
+// Pool-MSOL: GpCTx7w81RAqdJgC9HmJxwshUmagb1tpqG76beVpPwYA
+// Pool-UST: 8jde3rbntGh34KSk2V48q7w6WeFCCjEFLsxtV6AB2pWp
+// Pool-SRM: G7W5Dzby8sV8FobviTvogkzuksneFBCncy1kwjuoQea5
+// Pool-SCNSOL: 5RVTEUCfePKfwnvQdgW3nhKyndyPXAM2TJfUKXuT1dzP
+// Pool-STSOL: GYWxoNG6adwwe6Za6V7QQCxKFsDvJXxDNdhPrLuGu1CC
+// Pool-USDT: 51FovGmzpBmxy31yHAnhu4Ftb5VgoYV4bYxNhQdoPVAZ
+// Pool-LpSOL: HbYcBPKmKcNVFgvQt8in3KFTG6GQtYHXDM7Dwq2q7JKo
+// Pool-LpUSD: Bc7AzMJcUbE1c3CLHpXtyY7g9x23BBryJgqXRPvwHyCB
+// Pool-LpBTC: E6Bu3gzRbTuPmWRiCArJqtAvUzYFwJYf9nYZSjSarTJT
+// Pool-LpETH: GvbQ59hQsovMGaz2W4rq6xCxtF43UJdugq9mJocYWTpU
+
 // 2022-04-13
 // ProgramID 3f39cgs9wPLVv4vGySNecjKtefe5MJYkFEEj3v6bPequ
 // Config:  4vtJgTh9V2dMnQXB9Fv95rR9AXx9oxDbQ46rjdh2vrpx
@@ -268,16 +286,3 @@ module.exports = async function (provider) {
 // Pool-LpUSD: GA94vWMGzujMsSqLpKtWfd24F8AstPqcpgWZuETQEwww
 // Pool-LpBTC: 5nA17sck1GBy1ztS5UbqEQmPxEwdU2DSfDD9BdYo9A7u
 // Pool-LpETH: 2CHQiC3xsjWKy5nSinxdXvY6SuxxSqapfriD1MKj5xj5
-
-// 2022-04-07 devnet
-// ProgramID 6fp8G5rybFqcEJDpXUQhc4ump7aHz59dLbYMpxKsdYVp
-// Config:  6bUzHQxih8vuMtZL7fm2xsfSt55zDuL4m9RwrqXk9YDp
-// State-Account: Fe3ssjryG7wW7aC7PnTrA8w6TJSKs8CbV3DjoCjJJsdw
-// Pool-ETH: 5iPpUr2wtoZ7KLDEvtiYJ3EFKzbgbGPep73mTbgeyp8q
-// Pool-USDC: Cdf1MY5c4aR9J8eWChHDvjivdWCsmm6QfdTBWyYBtT7S
-// Pool-BTC: 49it3gP5BSpGFLuHRQXdn5vMGyPtgiaVNfRQ6N8NNet4
-// Pool-MSOL: 5wJmThdpat6aie8ZxAXPhnphuqjrGpXEai2bNE2TPS6D
-// Pool-LpSOL: MKi8ukqLJsfxXb4fCVf1WSWn2UyvP2Tib6qgcfkb25b
-// Pool-LpUSD: FiDzogxrkJzZMpWsJRF1ZqftH4G7AmzisEZ1ZBciq6s2
-// Pool-LpBTC: HWHn4EjmaMwwpsAkGRFnetfffhRi7BDBnDXqktqDvuEJ
-// Pool-LpETH: 3mJM6UXAHifoRvhpo9QPfsBY3guhEMiP4D7T4S72HEHm
