@@ -3,7 +3,7 @@ use std::ops::DerefMut;
 
 declare_id!("6gUZGnEHSjVmZ3dq99wd7Ut8ER7PSoEAqPjFfjPKkuMv");
 
-const MAX_LEN: usize = 500;
+const MAX_LEN: usize = 10000;
 
 #[program]
 pub mod lpfinance_accounts {
@@ -172,7 +172,7 @@ pub struct AddFromCbsProgram<'info> {
 
 #[account(zero_copy)]
 pub struct WhiteList {
-    pub addresses: [Pubkey; 500]
+    pub addresses: [Pubkey; 10000]
 }
 
 #[error_code]

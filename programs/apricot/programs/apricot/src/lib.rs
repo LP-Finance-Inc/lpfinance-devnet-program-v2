@@ -148,90 +148,90 @@ pub mod apricot {
         let config = &mut ctx.accounts.config;
 
         if config.usdc_mint == ctx.accounts.token_mint.key() {
-            let withdrawable_amount = user_account.usdc_amount * config.usdc_rate / DENOMINATOR;
+            let withdrawable_amount = (user_account.usdc_amount as u128 * config.usdc_rate  as u128/ DENOMINATOR as u128) as u64;
         
             if amount > withdrawable_amount {
                 return Err(ErrorCode::ExceedAmount.into());
             }
 
-            let remain_amount = (withdrawable_amount - amount) * DENOMINATOR / config.usdc_rate;
+            let remain_amount = ((withdrawable_amount - amount)  as u128 * DENOMINATOR  as u128 / config.usdc_rate  as u128) as u64;
             config.usdc_amount = config.usdc_amount - amount;
             user_account.usdc_amount = remain_amount;
         } else if config.msol_mint == ctx.accounts.token_mint.key() {
             
-            let withdrawable_amount = user_account.msol_amount * config.msol_rate / DENOMINATOR;
+            let withdrawable_amount = (user_account.msol_amount  as u128 * config.msol_rate  as u128 / DENOMINATOR as u128) as u64;
         
             if amount > withdrawable_amount {
                 return Err(ErrorCode::ExceedAmount.into());
             }
 
-            let remain_amount = (withdrawable_amount - amount) * DENOMINATOR / config.msol_rate;
+            let remain_amount = ((withdrawable_amount - amount) as u128 * DENOMINATOR as u128 / config.msol_rate as u128) as u64;
             config.msol_amount = config.msol_amount - amount;
             user_account.msol_amount = remain_amount;
         } else if config.srm_mint == ctx.accounts.token_mint.key() {
             
-            let withdrawable_amount = user_account.srm_amount * config.srm_rate / DENOMINATOR;
+            let withdrawable_amount = (user_account.srm_amount as u128 * config.srm_rate as u128 / DENOMINATOR as u128) as u64;
         
             if amount > withdrawable_amount {
                 return Err(ErrorCode::ExceedAmount.into());
             }
 
-            let remain_amount = (withdrawable_amount - amount) * DENOMINATOR / config.srm_rate;
+            let remain_amount = ((withdrawable_amount - amount) as u128 * DENOMINATOR as u128 / config.srm_rate as u128) as u64;
             config.srm_amount = config.srm_amount - amount;
             user_account.srm_amount = remain_amount;
         } else if config.scnsol_mint == ctx.accounts.token_mint.key() {
             
-            let withdrawable_amount = user_account.scnsol_amount * config.scnsol_rate / DENOMINATOR;
+            let withdrawable_amount = (user_account.scnsol_amount as u128 * config.scnsol_rate as u128 / DENOMINATOR as u128) as u64;
         
             if amount > withdrawable_amount {
                 return Err(ErrorCode::ExceedAmount.into());
             }
 
-            let remain_amount = (withdrawable_amount - amount) * DENOMINATOR / config.scnsol_rate;
+            let remain_amount = ((withdrawable_amount - amount) as u128 * DENOMINATOR as u128 / config.scnsol_rate as u128) as u64;
             config.scnsol_amount = config.scnsol_amount - amount;
             user_account.scnsol_amount = remain_amount;
         } else if config.stsol_mint == ctx.accounts.token_mint.key() {
             
-            let withdrawable_amount = user_account.stsol_amount * config.stsol_rate / DENOMINATOR;
+            let withdrawable_amount = (user_account.stsol_amount as u128 * config.stsol_rate as u128 / DENOMINATOR as u128 ) as u64;
         
             if amount > withdrawable_amount {
                 return Err(ErrorCode::ExceedAmount.into());
             }
 
-            let remain_amount = (withdrawable_amount - amount) * DENOMINATOR / config.stsol_rate;
+            let remain_amount = ((withdrawable_amount - amount) as u128 * DENOMINATOR as u128 / config.stsol_rate as u128) as u64;
             config.stsol_amount = config.stsol_amount - amount;
             user_account.stsol_amount = remain_amount;
         } else if config.btc_mint == ctx.accounts.token_mint.key() {
             
-            let withdrawable_amount = user_account.btc_amount * config.btc_rate / DENOMINATOR;
+            let withdrawable_amount = (user_account.btc_amount as u128 * config.btc_rate as u128 / DENOMINATOR as u128) as u64;
         
             if amount > withdrawable_amount {
                 return Err(ErrorCode::ExceedAmount.into());
             }
 
-            let remain_amount = (withdrawable_amount - amount) * DENOMINATOR / config.btc_rate;
+            let remain_amount = ((withdrawable_amount - amount) as u128 * DENOMINATOR as u128 / config.btc_rate as u128) as u64;
             config.btc_amount = config.btc_amount - amount;
             user_account.btc_amount = remain_amount;
         } else if config.usdt_mint == ctx.accounts.token_mint.key() {
             
-            let withdrawable_amount = user_account.usdt_amount * config.usdt_rate / DENOMINATOR;
+            let withdrawable_amount = (user_account.usdt_amount as u128 * config.usdt_rate as u128 / DENOMINATOR as u128) as u64;
         
             if amount > withdrawable_amount {
                 return Err(ErrorCode::ExceedAmount.into());
             }
 
-            let remain_amount = (withdrawable_amount - amount) * DENOMINATOR / config.usdt_rate;
+            let remain_amount = ((withdrawable_amount - amount) as u128 * DENOMINATOR as u128 / config.usdt_rate as u128) as u64;
             config.usdt_amount = config.usdt_amount - amount;
             user_account.usdt_amount = remain_amount;
         } else if config.eth_mint == ctx.accounts.token_mint.key() {
             
-            let withdrawable_amount = user_account.eth_amount * config.eth_rate / DENOMINATOR;
+            let withdrawable_amount = (user_account.eth_amount as u128 * config.eth_rate as u128 / DENOMINATOR as u128) as u64;
         
             if amount > withdrawable_amount {
                 return Err(ErrorCode::ExceedAmount.into());
             }
 
-            let remain_amount = (withdrawable_amount - amount) * DENOMINATOR / config.eth_rate;
+            let remain_amount = ((withdrawable_amount - amount) as u128 * DENOMINATOR as u128 / config.eth_rate as u128) as u64;
             config.eth_amount = config.eth_amount - amount;
             user_account.eth_amount = remain_amount;
         } else {

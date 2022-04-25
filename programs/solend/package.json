@@ -1,6 +1,8 @@
 {
     "scripts": {
-        "update-idl": "cp ./target/idl/solend.json ../../../devnet-app-v2/src/idls/solend.json"
+        "update-vercel": "cp ./target/idl/solend.json ../../../devnet-app-v2/src/idls/solend.json",
+        "update-test": "cp ./target/idl/solend.json ../../../test.lp.finance/src/lib/idls/solend.json",
+        "update-idl": "npm run update-vercel && npm run update-test"
     },
     "dependencies": {
         "@project-serum/anchor": "^0.22.0",

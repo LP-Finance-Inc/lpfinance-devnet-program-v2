@@ -1,6 +1,8 @@
 {
     "scripts": {
-        "update-idl": "cp ./target/idl/cbs_protocol.json ../../../devnet-app-v2/src/idls/cbs_protocol.json"
+        "update-vercel": "cp ./target/idl/cbs_protocol.json ../../../devnet-app-v2/src/idls/cbs_protocol.json",
+        "update-test": "cp ./target/idl/cbs_protocol.json ../../../test.lp.finance/src/lib/idls/cbs_protocol.json",
+        "update-idl": "npm run update-vercel && npm run update-test"
     },
     "dependencies": {
         "@project-serum/anchor": "^0.22.0",

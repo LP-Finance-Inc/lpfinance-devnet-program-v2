@@ -50,6 +50,8 @@ module.exports = async function (provider) {
       program.programId
     );
 
+    console.log("State Account:", stateAccount.toBase58());
+
     // updateRate
     await program.rpc.updateRate({
       accounts: {

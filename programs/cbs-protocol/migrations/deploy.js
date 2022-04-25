@@ -50,6 +50,30 @@ module.exports = async function (provider) {
   const program = new anchor.Program(idl, programID);
 
   try {
+    const authority = new PublicKey("BVNzJ86EJcsPwqNX98xMSLkZWQWuCcaPKTDhKoK22bne");
+    const [userAccount, userAccountBump] = await PublicKey.findProgramAddress(
+      [Buffer.from(PREFIX), Buffer.from(authority.toBuffer())],
+      program.programId
+    );
+
+    await program.rpc.fixUserAccount( new anchor.BN("0"), {
+      accounts: {
+        userAccount
+      }
+    });
+  } catch (err) {
+    console.log(err)
+  }
+}
+/*
+module.exports = async function (provider) {
+  // Configure client to use the provider.
+  anchor.setProvider(provider);
+
+  // Add your deploy script here
+  const program = new anchor.Program(idl, programID);
+
+  try {
     // const config  = new PublicKey("6bUzHQxih8vuMtZL7fm2xsfSt55zDuL4m9RwrqXk9YDp");
     const configAccount = anchor.web3.Keypair.generate();
     console.log("Config: ", configAccount.publicKey.toBase58());
@@ -249,7 +273,7 @@ module.exports = async function (provider) {
   } catch (err) {
     console.log("Transaction error: ", err);
   }
-}
+} */
 
 // 2022-04-22
 // ProgramID 3f39cgs9wPLVv4vGySNecjKtefe5MJYkFEEj3v6bPequ

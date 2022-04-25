@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 // use pyth_client;
 use anchor_spl::token::{self, Mint, Transfer, Token, TokenAccount };
 
-use cbs_protocol::cpi::accounts::{LiquidateCollateral, LiquidateLpTokenCollateral};
+use cbs_protocol::cpi::accounts::{LiquidateCollateral, UpdateUserAccount, LiquidateSecondCollateral, LiquidateLpTokenCollateral};
 use cbs_protocol::program::CbsProtocol;
 use cbs_protocol::{self, UserAccount, StateAccount};
 
@@ -12,7 +12,9 @@ use lpfinance_swap::{self};
 
 declare_id!("E3tXtRu4xvVCxUHiM9cEMpjhuSUXkNBd3gxr5RdKzSRw");
 
-const DENOMINATOR:u64 = 100;
+// Actually DENOMINATOR should be 100 (%)
+// But to calculate percent in more clearly, we consider DECIMAL 4. For example, 101.0014
+const DENOMINATOR:u64 = 1000000;
 const LTV_PERMISSION:u64 = 94;
 
 const PREFIX: &str = "lpauction1";
@@ -84,7 +86,7 @@ pub mod lpusd_auction {
         config.pool_stsol = ctx.accounts.pool_stsol.key();
         config.pool_usdt = ctx.accounts.pool_usdt.key();
 
-        config.total_percent = 100; // 10000000
+        config.total_percent = DENOMINATOR;
         config.total_lpusd = 0;
         config.epoch_duration = 0;
         config.total_deposited_lpusd = 0;
@@ -130,43 +132,48 @@ pub mod lpusd_auction {
         token::transfer(cpi_ctx, amount)?;
 
         let user_account = &mut ctx.accounts.user_account;
-        user_account.temp_amount = user_account.temp_amount + amount;
-        user_account.lpusd_amount = (user_account.lpusd_amount * ctx.accounts.config.total_percent + amount * DENOMINATOR) / ctx.accounts.config.total_percent;
+        // user_account.temp_amount = user_account.temp_amount + amount;
+        user_account.lpusd_amount = user_account.lpusd_amount+ (amount as u128 * DENOMINATOR as u128 / ctx.accounts.config.total_percent as u128) as u64;
 
         let config = &mut ctx.accounts.config;
         config.total_lpusd = config.total_lpusd + amount;
-        config.total_deposited_lpusd = config.total_deposited_lpusd + amount;
-
+        // config.total_deposited_lpusd = config.total_deposited_lpusd + amount;
         Ok(())
     }
 
     pub fn liquidate_from_cbs(
         ctx: Context<LiquidateFromCBS>
     ) -> Result<()> {
-
+        if ctx.accounts.liquidator.bump > 0 && ctx.accounts.liquidator.bump < 5 {
+            return Err(ErrorCode::FinishPrevLiquidate.into());
+        }
         // Transfer all collaterals from cbs to auction
         msg!("Start LiquidateFromCBS");
+
+        let borrowed_lpusd = ctx.accounts.liquidator.borrowed_lpusd;       
+        let borrowed_lpsol = ctx.accounts.liquidator.borrowed_lpsol;
+        let borrowed_lpbtc = ctx.accounts.liquidator.borrowed_lpbtc;       
+        let borrowed_lpeth = ctx.accounts.liquidator.borrowed_lpeth;
+
+        if borrowed_lpusd == 0 && borrowed_lpsol == 0 && borrowed_lpbtc == 0 && borrowed_lpeth == 0{
+            return Err(ErrorCode::NotBorrowedLpToken.into());
+        }
+
         let cpi_program = ctx.accounts.cbs_program.to_account_info();
         let cpi_accounts = LiquidateCollateral {
             user_account: ctx.accounts.liquidator.to_account_info(),
             state_account: ctx.accounts.cbs_account.to_account_info(),
             auction_account: ctx.accounts.state_account.to_account_info(),
 
+            auction_msol: ctx.accounts.auction_msol.to_account_info(),
+            auction_btc: ctx.accounts.auction_btc.to_account_info(),
             auction_usdc: ctx.accounts.auction_usdc.to_account_info(),
             auction_eth: ctx.accounts.auction_eth.to_account_info(),
-            auction_ust: ctx.accounts.auction_ust.to_account_info(),
-            auction_srm: ctx.accounts.auction_srm.to_account_info(),
-            auction_scnsol: ctx.accounts.auction_srm.to_account_info(),
-            auction_stsol: ctx.accounts.auction_srm.to_account_info(),
-            auction_usdt: ctx.accounts.auction_srm.to_account_info(),
 
-            // cbs_usdc: ctx.accounts.cbs_usdc.to_account_info(),
-            // cbs_eth: ctx.accounts.cbs_eth.to_account_info(),
-            // cbs_ust: ctx.accounts.cbs_ust.to_account_info(),
-            // cbs_srm: ctx.accounts.cbs_srm.to_account_info(),
-            // cbs_scnsol: ctx.accounts.cbs_scnsol.to_account_info(),
-            // cbs_stsol: ctx.accounts.cbs_stsol.to_account_info(),
-            // cbs_usdt: ctx.accounts.cbs_usdt.to_account_info(),
+            cbs_btc: ctx.accounts.cbs_btc.to_account_info(),
+            cbs_msol: ctx.accounts.cbs_msol.to_account_info(),
+            cbs_usdc: ctx.accounts.cbs_usdc.to_account_info(),
+            cbs_eth: ctx.accounts.cbs_eth.to_account_info(),
 
             system_program: ctx.accounts.system_program.to_account_info(),
             token_program: ctx.accounts.token_program.to_account_info(),
@@ -178,26 +185,81 @@ pub mod lpusd_auction {
         Ok(())
     }
 
+    pub fn liquidate_second_from_cbs(
+        ctx: Context<LiquidateSecondFromCBS>
+    ) -> Result<()> {
+
+        if ctx.accounts.liquidator.bump != 1 {
+            return Err(ErrorCode::FinishPrevLiquidate.into());
+        }
+        // Transfer all collaterals from cbs to auction
+        msg!("Start LiquidateSecondFromCBS");
+
+        let borrowed_lpusd = ctx.accounts.liquidator.borrowed_lpusd;       
+        let borrowed_lpsol = ctx.accounts.liquidator.borrowed_lpsol;
+        let borrowed_lpbtc = ctx.accounts.liquidator.borrowed_lpbtc;       
+        let borrowed_lpeth = ctx.accounts.liquidator.borrowed_lpeth;
+
+        if borrowed_lpusd == 0 && borrowed_lpsol == 0 && borrowed_lpbtc == 0 && borrowed_lpeth == 0{
+            return Err(ErrorCode::NotBorrowedLpToken.into());
+        }
+
+        let cpi_program = ctx.accounts.cbs_program.to_account_info();
+        let cpi_accounts = LiquidateSecondCollateral {
+            user_account: ctx.accounts.liquidator.to_account_info(),
+            state_account: ctx.accounts.cbs_account.to_account_info(),
+
+            auction_ust: ctx.accounts.auction_ust.to_account_info(),
+            auction_srm: ctx.accounts.auction_srm.to_account_info(),
+            auction_scnsol: ctx.accounts.auction_srm.to_account_info(),
+            auction_stsol: ctx.accounts.auction_srm.to_account_info(),
+            auction_usdt: ctx.accounts.auction_srm.to_account_info(),
+
+            cbs_ust: ctx.accounts.cbs_ust.to_account_info(),
+            cbs_srm: ctx.accounts.cbs_srm.to_account_info(),
+            cbs_scnsol: ctx.accounts.cbs_scnsol.to_account_info(),
+            cbs_stsol: ctx.accounts.cbs_stsol.to_account_info(),
+            cbs_usdt: ctx.accounts.cbs_usdt.to_account_info(),
+
+            system_program: ctx.accounts.system_program.to_account_info(),
+            token_program: ctx.accounts.token_program.to_account_info(),
+            rent: ctx.accounts.rent.to_account_info()
+        };
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        cbs_protocol::cpi::liquidate_second_collateral(cpi_ctx)?;
+
+        Ok(())
+    }
+
     pub fn liquidate_lptoken_from_cbs(
         ctx: Context<LiquidateLpTokenFromCBS>
     ) -> Result<()> {
 
+        if ctx.accounts.liquidator.bump != 2 {
+            return Err(ErrorCode::FinishPrevLiquidate.into());
+        }
         // Transfer all collaterals from cbs to auction
+        msg!("Start LiquidateLpTokenFromCBS");
         
+        let borrowed_lpusd = ctx.accounts.liquidator.borrowed_lpusd;       
+        let borrowed_lpsol = ctx.accounts.liquidator.borrowed_lpsol;
+        let borrowed_lpbtc = ctx.accounts.liquidator.borrowed_lpbtc;       
+        let borrowed_lpeth = ctx.accounts.liquidator.borrowed_lpeth;
+
+        if borrowed_lpusd == 0 && borrowed_lpsol == 0 && borrowed_lpbtc == 0 && borrowed_lpeth == 0{
+            return Err(ErrorCode::NotBorrowedLpToken.into());
+        }
+
         let cpi_program = ctx.accounts.cbs_program.to_account_info();
         let cpi_accounts = LiquidateLpTokenCollateral {
             user_account: ctx.accounts.liquidator.to_account_info(),
             state_account: ctx.accounts.cbs_account.to_account_info(),
 
-            auction_msol: ctx.accounts.auction_msol.to_account_info(),
-            auction_btc: ctx.accounts.auction_btc.to_account_info(),
             auction_lpusd: ctx.accounts.auction_lpusd.to_account_info(),
             auction_lpsol: ctx.accounts.auction_lpsol.to_account_info(),
             auction_lpbtc: ctx.accounts.auction_lpbtc.to_account_info(),
             auction_lpeth: ctx.accounts.auction_lpeth.to_account_info(),
 
-            cbs_btc: ctx.accounts.cbs_btc.to_account_info(),
-            cbs_msol: ctx.accounts.cbs_msol.to_account_info(),
             cbs_lpusd: ctx.accounts.cbs_lpusd.to_account_info(),
             cbs_lpsol: ctx.accounts.cbs_lpsol.to_account_info(),
             cbs_lpbtc: ctx.accounts.cbs_lpbtc.to_account_info(),
@@ -220,15 +282,14 @@ pub mod lpusd_auction {
 
         let liquidator = &mut ctx.accounts.liquidator;
 
+        if liquidator.bump != 3 {
+            return Err(ErrorCode::FinishPrevLiquidate.into());
+        }
+
         let borrowed_lpusd = liquidator.borrowed_lpusd;       
         let borrowed_lpsol = liquidator.borrowed_lpsol;
         let borrowed_lpbtc = liquidator.borrowed_lpbtc;       
         let borrowed_lpeth = liquidator.borrowed_lpeth;
-
-        let lpsol_amount = liquidator.lpsol_amount;
-        let lpusd_amount = liquidator.lpusd_amount;
-        let lpbtc_amount = liquidator.lpbtc_amount;
-        let lpeth_amount = liquidator.lpeth_amount;
 
         if borrowed_lpusd == 0 && borrowed_lpsol == 0 && borrowed_lpbtc == 0 && borrowed_lpeth == 0{
             return Err(ErrorCode::NotBorrowedLpToken.into());
@@ -248,21 +309,21 @@ pub mod lpusd_auction {
 
         // Total Deposited Price
         let mut total_price: u128 = 0;
-        total_price += sol_price * (liquidator.sol_amount + liquidator.lending_sol_amount) as u128;
-        total_price += btc_price * (liquidator.btc_amount + liquidator.lending_btc_amount) as u128;
-        total_price += usdc_price * (liquidator.usdc_amount + liquidator.lending_usdc_amount) as u128;
-        total_price += eth_price * (liquidator.eth_amount + liquidator.lending_eth_amount) as u128;
-        total_price += msol_price * (liquidator.msol_amount + liquidator.lending_msol_amount) as u128;
-        total_price += ust_price * (liquidator.ust_amount + liquidator.lending_ust_amount) as u128;
-        total_price += srm_price * (liquidator.srm_amount + liquidator.lending_srm_amount) as u128;
-        total_price += scnsol_price * (liquidator.scnsol_amount + liquidator.lending_scnsol_amount) as u128;
-        total_price += stsol_price * (liquidator.stsol_amount + liquidator.lending_stsol_amount) as u128;
-        total_price += usdt_price * (liquidator.usdt_amount + liquidator.lending_usdt_amount) as u128;
+        total_price += sol_price * (liquidator.sol_amount) as u128; //  + liquidator.lending_sol_amount
+        total_price += btc_price * (liquidator.btc_amount) as u128; //  + liquidator.lending_btc_amount
+        total_price += usdc_price * (liquidator.usdc_amount) as u128; //  + liquidator.lending_usdc_amount
+        total_price += eth_price * (liquidator.eth_amount) as u128; //  + liquidator.lending_eth_amount
+        total_price += msol_price * (liquidator.msol_amount) as u128; //  + liquidator.lending_msol_amount
+        total_price += ust_price * (liquidator.ust_amount) as u128; //  + liquidator.lending_ust_amount
+        total_price += srm_price * (liquidator.srm_amount) as u128; //  + liquidator.lending_srm_amount
+        total_price += scnsol_price * (liquidator.scnsol_amount) as u128; //  + liquidator.lending_scnsol_amount
+        total_price += stsol_price * (liquidator.stsol_amount) as u128; //  + liquidator.lending_stsol_amount
+        total_price += usdt_price * (liquidator.usdt_amount) as u128; //  + liquidator.lending_usdt_amount
 
-        total_price += sol_price * lpsol_amount as u128;
-        total_price += btc_price * lpbtc_amount as u128;
-        total_price += eth_price * lpeth_amount as u128;
-        total_price += usdc_price * lpusd_amount as u128;
+        total_price += sol_price * liquidator.lpsol_amount as u128;
+        total_price += btc_price * liquidator.lpbtc_amount as u128;
+        total_price += eth_price * liquidator.lpeth_amount as u128;
+        total_price += usdc_price * liquidator.lpusd_amount as u128;
 
         // Total Borrowed Price 
         let total_borrowed_price:u128 = borrowed_lpusd as u128 * usdc_price + 
@@ -275,7 +336,8 @@ pub mod lpusd_auction {
         // if total_price * LTV_PERMISSION as u128 >= total_borrowed_price * 100{
         //     return Err(ErrorCode::NotEnoughLTV.into());
         // }
-
+        
+        // Get signer
         let (program_authority, program_authority_bump) = 
         Pubkey::find_program_address(&[PREFIX.as_bytes()], ctx.program_id);
     
@@ -288,6 +350,7 @@ pub mod lpusd_auction {
             &[program_authority_bump]
         ];
         let signer = &[&seeds[..]];
+        // End to get signer
 
         if borrowed_lpusd > 0 {
             if borrowed_lpusd > ctx.accounts.auction_lpusd.amount {
@@ -305,8 +368,8 @@ pub mod lpusd_auction {
             token::transfer(cpi_ctx, borrowed_lpusd)?;
         }
 
- 
-        let mut lpusd_for_swap = lpusd_amount;
+        // Because lpusd is included in total price and sent to cbs already
+        let mut lpusd_for_swap = liquidator.lpusd_amount;
         // Liquidate LpSOL (Swap LpUSD to LpSOL and transfer LpSOL to CBS)
         if borrowed_lpsol > 0 {            
             let transfer_amount = (sol_price * borrowed_lpsol as u128 / usdc_price) as u64;
@@ -379,16 +442,28 @@ pub mod lpusd_auction {
             ctx.accounts.user_account.total_request_lpusd = total_request_lpusd;
         }
 
+
         let reward = (total_price - total_borrowed_price) / usdc_price;
-        
+        msg!("Total Price and Total Borrowed Price {} {}", reward, total_borrowed_price);
+        msg!("Reward {}", reward);
+        msg!("Total Request Lpusd {}", total_request_lpusd);
         let config = &mut ctx.accounts.config;
+        msg!("Total Auction Lpusd {}", config.total_lpusd);
+
         let total_amount = config.total_lpusd + reward as u64;
         let auction_percent = config.total_percent as u128 * total_amount as u128 / config.total_lpusd as u128;
 
-        config.last_epoch_percent = total_amount * 100 / config.total_lpusd;
+        config.last_epoch_percent = (total_amount as u128 * DENOMINATOR as u128 / config.total_lpusd as u128) as u64;
         config.last_epoch_profit = reward as u64;
         config.total_lpusd = total_amount;
         config.total_percent = auction_percent as u64;        
+
+        let cpi_program = ctx.accounts.cbs_program.to_account_info();
+        let cpi_accounts = UpdateUserAccount {
+            user_account: ctx.accounts.liquidator.to_account_info()
+        };
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        cbs_protocol::cpi::update_user_account(cpi_ctx, 4)?;
 
         Ok(())
     }
@@ -397,9 +472,203 @@ pub mod lpusd_auction {
         ctx: Context<LiquidateSwap>
     ) -> Result<()> {
         
-        msg!("Started liquidate");
+        msg!("Started liquidate swap");
 
         let liquidator = &mut ctx.accounts.liquidator;
+        if liquidator.bump != 4 {
+            return Err(ErrorCode::FinishPrevLiquidate.into());
+        }
+        
+        // Request LpUSD amount from SWAP to AUCTION
+        // let user_account = &mut ctx.accounts.user_account;
+
+        // let total_request_lpusd = user_account.total_request_lpusd;
+                
+        // if total_request_lpusd == 0 {
+        //     return Err(ErrorCode::InvalidAmount.into());
+        // }
+
+        let btc_amount = liquidator.btc_amount; // + liquidator.lending_btc_amount;
+        let sol_amount = liquidator.sol_amount; // + liquidator.lending_sol_amount;
+        let usdc_amount = liquidator.usdc_amount; // + liquidator.lending_usdc_amount;
+        let msol_amount = liquidator.msol_amount; // + liquidator.lending_msol_amount;
+        let eth_amount = liquidator.eth_amount; // + liquidator.lending_eth_amount;
+        let ust_amount = liquidator.ust_amount; // + liquidator.lending_ust_amount;
+        let srm_amount = liquidator.srm_amount; // + liquidator.lending_srm_amount;
+        let scnsol_amount = liquidator.scnsol_amount; // + liquidator.lending_scnsol_amount;
+        let stsol_amount = liquidator.stsol_amount; // + liquidator.lending_stsol_amount;
+        let usdt_amount = liquidator.usdt_amount; // + liquidator.lending_usdt_amount;
+
+        let (program_authority, program_authority_bump) = 
+        Pubkey::find_program_address(&[PREFIX.as_bytes()], ctx.program_id);
+    
+        if program_authority != ctx.accounts.state_account.to_account_info().key() {
+            return Err(ErrorCode::InvalidOwner.into());
+        }
+
+        let seeds = &[
+            PREFIX.as_bytes(),
+            &[program_authority_bump]
+        ];
+        let signer = &[&seeds[..]];
+
+        // BTC
+        if btc_amount > 0 {
+            msg!("BTC sending");
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.auction_btc.to_account_info(),
+                to: ctx.accounts.swap_btc.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, btc_amount)?;
+        }
+        
+        // mSOL
+        if msol_amount > 0 {
+            msg!("mSOL sending");
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.auction_msol.to_account_info(),
+                to: ctx.accounts.swap_msol.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, msol_amount)?;
+        }
+        
+        // USDC 
+        if usdc_amount > 0 {
+            msg!("USDC sending");
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.auction_usdc.to_account_info(),
+                to: ctx.accounts.swap_usdc.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, usdc_amount)?;
+        }
+
+        // eth
+        if eth_amount > 0 {
+            msg!("ETH sending");
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.auction_eth.to_account_info(),
+                to: ctx.accounts.swap_eth.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, eth_amount)?;
+        }
+
+        
+        // ust
+        if ust_amount > 0 {
+            msg!("UST sending");
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.auction_ust.to_account_info(),
+                to: ctx.accounts.swap_ust.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, ust_amount)?;
+        }
+        
+        // srm 
+        if srm_amount > 0 {
+            msg!("SRN sending");
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.auction_srm.to_account_info(),
+                to: ctx.accounts.swap_srm.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, srm_amount)?;
+        }
+
+        // scnsol
+        if scnsol_amount > 0 {
+            msg!("SCNSOL sending");
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.auction_scnsol.to_account_info(),
+                to: ctx.accounts.swap_scnsol.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, scnsol_amount)?;
+        }
+
+        
+        // stsol
+        if stsol_amount > 0 {
+            msg!("STSOL sending");
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.auction_stsol.to_account_info(),
+                to: ctx.accounts.swap_stsol.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, stsol_amount)?;
+        }
+        
+        // usdt 
+        if usdt_amount > 0 {
+            msg!("USDT sending");
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.auction_usdt.to_account_info(),
+                to: ctx.accounts.swap_usdt.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, usdt_amount)?;
+        }
+
+        // SOL transfer
+        if sol_amount > 0 {
+            msg!("SOL sending");
+            **ctx.accounts.state_account.to_account_info().try_borrow_mut_lamports()? -= sol_amount;
+            **ctx.accounts.swap_account.to_account_info().try_borrow_mut_lamports()? += sol_amount;
+        }
+
+        let cpi_program = ctx.accounts.cbs_program.to_account_info();
+        let cpi_accounts = UpdateUserAccount {
+            user_account: ctx.accounts.liquidator.to_account_info()
+        };
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        cbs_protocol::cpi::update_user_account(cpi_ctx, 5)?;
+
+        Ok(())
+    }
+
+
+    pub fn liquidate_second_swap(
+        ctx: Context<LiquidateSecondSwap>
+    ) -> Result<()> {
+        
+        msg!("Started liquidate second swap");
+
+        let liquidator = &mut ctx.accounts.liquidator;
+        if liquidator.bump != 5 {
+            return Err(ErrorCode::FinishPrevLiquidate.into());
+        }
+        
         // Request LpUSD amount from SWAP to AUCTION
         let user_account = &mut ctx.accounts.user_account;
 
@@ -408,17 +677,6 @@ pub mod lpusd_auction {
         if total_request_lpusd == 0 {
             return Err(ErrorCode::InvalidAmount.into());
         }
-
-        let btc_amount = liquidator.btc_amount + liquidator.lending_btc_amount;
-        let sol_amount = liquidator.sol_amount + liquidator.lending_sol_amount;
-        let usdc_amount = liquidator.usdc_amount + liquidator.lending_usdc_amount;
-        let msol_amount = liquidator.msol_amount + liquidator.lending_msol_amount;
-        let eth_amount = liquidator.eth_amount + liquidator.lending_eth_amount;
-        let ust_amount = liquidator.ust_amount + liquidator.lending_ust_amount;
-        let srm_amount = liquidator.srm_amount + liquidator.lending_srm_amount;
-        let scnsol_amount = liquidator.scnsol_amount + liquidator.lending_scnsol_amount;
-        let stsol_amount = liquidator.stsol_amount + liquidator.lending_stsol_amount;
-        let usdt_amount = liquidator.usdt_amount + liquidator.lending_usdt_amount;
 
         let lpsol_amount = liquidator.lpsol_amount;
         // let lpusd_amount = liquidator.lpusd_amount;
@@ -437,125 +695,6 @@ pub mod lpusd_auction {
             &[program_authority_bump]
         ];
         let signer = &[&seeds[..]];
-
-        // BTC
-        if btc_amount > 0 {
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.auction_btc.to_account_info(),
-                to: ctx.accounts.swap_btc.to_account_info(),
-                authority: ctx.accounts.state_account.to_account_info()
-            };
-    
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-            token::transfer(cpi_ctx, btc_amount)?;
-        }
-        
-        // mSOL
-        if msol_amount > 0 {
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.auction_msol.to_account_info(),
-                to: ctx.accounts.swap_msol.to_account_info(),
-                authority: ctx.accounts.state_account.to_account_info()
-            };
-    
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-            token::transfer(cpi_ctx, msol_amount)?;
-        }
-        
-        // USDC 
-        if usdc_amount > 0 {
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.auction_usdc.to_account_info(),
-                to: ctx.accounts.swap_usdc.to_account_info(),
-                authority: ctx.accounts.state_account.to_account_info()
-            };
-    
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-            token::transfer(cpi_ctx, usdc_amount)?;
-        }
-
-        // eth
-        if eth_amount > 0 {
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.auction_eth.to_account_info(),
-                to: ctx.accounts.swap_eth.to_account_info(),
-                authority: ctx.accounts.state_account.to_account_info()
-            };
-    
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-            token::transfer(cpi_ctx, eth_amount)?;
-        }
-
-        
-        // ust
-        if ust_amount > 0 {
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.auction_ust.to_account_info(),
-                to: ctx.accounts.swap_ust.to_account_info(),
-                authority: ctx.accounts.state_account.to_account_info()
-            };
-    
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-            token::transfer(cpi_ctx, ust_amount)?;
-        }
-        
-        // srm 
-        if srm_amount > 0 {
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.auction_srm.to_account_info(),
-                to: ctx.accounts.swap_srm.to_account_info(),
-                authority: ctx.accounts.state_account.to_account_info()
-            };
-    
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-            token::transfer(cpi_ctx, srm_amount)?;
-        }
-
-        // scnsol
-        if scnsol_amount > 0 {
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.auction_scnsol.to_account_info(),
-                to: ctx.accounts.swap_scnsol.to_account_info(),
-                authority: ctx.accounts.state_account.to_account_info()
-            };
-    
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-            token::transfer(cpi_ctx, scnsol_amount)?;
-        }
-
-        
-        // stsol
-        if stsol_amount > 0 {
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.auction_stsol.to_account_info(),
-                to: ctx.accounts.swap_stsol.to_account_info(),
-                authority: ctx.accounts.state_account.to_account_info()
-            };
-    
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-            token::transfer(cpi_ctx, stsol_amount)?;
-        }
-        
-        // usdt 
-        if usdt_amount > 0 {
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.auction_usdt.to_account_info(),
-                to: ctx.accounts.swap_usdt.to_account_info(),
-                authority: ctx.accounts.state_account.to_account_info()
-            };
-    
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-            token::transfer(cpi_ctx, usdt_amount)?;
-        }
 
         // LpSOL
         if lpsol_amount > 0 {
@@ -610,11 +749,14 @@ pub mod lpusd_auction {
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
         lpfinance_swap::cpi::liquidate_token(cpi_ctx, transfer_amount)?;
 
-        // SOL transfer
-        if sol_amount > 0 {
-            **ctx.accounts.state_account.to_account_info().try_borrow_mut_lamports()? -= sol_amount;
-            **ctx.accounts.swap_account.to_account_info().try_borrow_mut_lamports()? += sol_amount;
-        }
+        let cpi_program = ctx.accounts.cbs_program.to_account_info();
+        let cpi_accounts = UpdateUserAccount {
+            user_account: ctx.accounts.liquidator.to_account_info()
+        };
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        cbs_protocol::cpi::update_user_account(cpi_ctx, 10)?;
+
+        ctx.accounts.user_account.total_request_lpusd = 0;
 
         Ok(())
     }
@@ -631,7 +773,7 @@ pub mod lpusd_auction {
         let user_account = &mut ctx.accounts.user_account;
         let config = &mut ctx.accounts.config;
 
-        let total_withdrawable_amount = user_account.lpusd_amount * config.total_percent / DENOMINATOR;
+        let total_withdrawable_amount = (user_account.lpusd_amount as u128 * config.total_percent as u128 / DENOMINATOR as u128) as u64;
         msg!("Total withdraw amount: !!{:?}!!", total_withdrawable_amount.to_string());
         msg!("pool_lpusd amount: !!{:?}!!", ctx.accounts.pool_lpusd.amount.to_string());
 
@@ -668,11 +810,25 @@ pub mod lpusd_auction {
         
         let config = &mut ctx.accounts.config;
 
-        config.total_lpusd = config.total_lpusd - user_account.lpusd_amount;
+        config.total_lpusd = config.total_lpusd - amount;
 
         // Init user account
-        user_account.lpusd_amount = (user_account.lpusd_amount * ctx.accounts.config.total_percent - amount * DENOMINATOR) / ctx.accounts.config.total_percent;
+        user_account.lpusd_amount = user_account.lpusd_amount - (amount as u128 * DENOMINATOR as u128 / ctx.accounts.config.total_percent as u128) as u64;
 
+        Ok(())
+    }
+
+
+    pub fn update_config(        
+        ctx: Context<UpdateConfig>,
+        total_percent: u64,
+        last_epoch_percent: u64
+    ) -> Result<()> {
+        let config  = &mut ctx.accounts.config;
+        config.total_percent = total_percent;
+        config.last_epoch_percent = last_epoch_percent;
+        config.total_deposited_lpusd = 0;
+        
         Ok(())
     }
 }
@@ -915,6 +1071,134 @@ pub struct DepositLpUSD<'info> {
     pub rent: Sysvar<'info, Rent>
 }
 
+
+#[derive(Accounts)]
+pub struct LiquidateFromCBS<'info> {
+    #[account(mut)]
+    pub user_authority: Signer<'info>,
+    #[account(mut,
+        seeds = [PREFIX.as_ref()],
+        bump
+    )]
+    pub state_account: Box<Account<'info, AuctionStateAccount>>,
+    #[account(mut, has_one = state_account)]
+    pub config: Box<Account<'info, Config>>,
+    // UserAccount from CBS protocol
+    #[account(mut)]
+    pub liquidator: Box<Account<'info, UserAccount>>,
+    #[account(mut)]
+    pub cbs_account: Box<Account<'info, StateAccount>>,
+    pub cbs_program: Program<'info, CbsProtocol>,
+
+    #[account(mut)]
+    pub auction_btc: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_msol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_usdc: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_eth: Box<Account<'info, TokenAccount>>,
+
+    #[account(mut)]
+    pub cbs_btc: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_msol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_usdc: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_eth: Box<Account<'info, TokenAccount>>,
+    
+    // Programs and Sysvars
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>
+}
+
+
+#[derive(Accounts)]
+pub struct LiquidateSecondFromCBS<'info> {
+    #[account(mut)]
+    pub user_authority: Signer<'info>,
+    #[account(mut)]
+    pub config: Box<Account<'info, Config>>,
+    // UserAccount from CBS protocol
+    #[account(mut)]
+    pub liquidator: Box<Account<'info, UserAccount>>,
+    #[account(mut)]
+    pub cbs_account: Box<Account<'info, StateAccount>>,
+    pub cbs_program: Program<'info, CbsProtocol>,
+
+    #[account(mut)]
+    pub auction_ust: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_srm: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_scnsol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_stsol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_usdt: Box<Account<'info, TokenAccount>>,
+
+    #[account(mut)]
+    pub cbs_ust: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_srm: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_scnsol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_stsol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_usdt: Box<Account<'info, TokenAccount>>,
+    
+    // Programs and Sysvars
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>
+}
+
+#[derive(Accounts)]
+pub struct LiquidateLpTokenFromCBS<'info> {
+    #[account(mut)]
+    pub user_authority: Signer<'info>,
+    #[account(mut,
+        seeds = [PREFIX.as_ref()],
+        bump
+    )]
+    pub state_account: Box<Account<'info, AuctionStateAccount>>,
+    #[account(mut, has_one = state_account)]
+    pub config: Box<Account<'info, Config>>,
+    // UserAccount from CBS protocol
+    #[account(mut)]
+    pub liquidator: Box<Account<'info, UserAccount>>,
+    #[account(mut)]
+    pub cbs_account: Box<Account<'info, StateAccount>>,
+    pub cbs_program: Program<'info, CbsProtocol>,
+
+    #[account(mut)]
+    pub auction_lpusd: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_lpsol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_lpbtc: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_lpeth: Box<Account<'info, TokenAccount>>,
+
+    #[account(mut)]
+    pub cbs_lpusd: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_lpsol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_lpbtc: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_lpeth: Box<Account<'info, TokenAccount>>,
+    
+    // Programs and Sysvars
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>
+}
+
+
 #[derive(Accounts)]
 pub struct Liquidate<'info> {
     #[account(mut)]
@@ -929,6 +1213,8 @@ pub struct Liquidate<'info> {
     // UserAccount from CBS protocol
     #[account(mut)]
     pub liquidator: Box<Account<'info, UserAccount>>,
+
+    pub cbs_program: Program<'info, CbsProtocol>,
     pub swap_program: Program<'info, LpfinanceSwap>,
 
     #[account(mut)]
@@ -977,120 +1263,6 @@ pub struct Liquidate<'info> {
     pub rent: Sysvar<'info, Rent>
 }
 
-
-#[derive(Accounts)]
-pub struct LiquidateFromCBS<'info> {
-    #[account(mut)]
-    pub user_authority: Signer<'info>,
-    #[account(mut,
-        seeds = [PREFIX.as_ref()],
-        bump
-    )]
-    pub state_account: Box<Account<'info, AuctionStateAccount>>,
-    #[account(mut, has_one = state_account)]
-    pub config: Box<Account<'info, Config>>,
-    // UserAccount from CBS protocol
-    #[account(mut)]
-    pub liquidator: Box<Account<'info, UserAccount>>,
-    #[account(mut)]
-    pub cbs_account: Box<Account<'info, StateAccount>>,
-    pub cbs_program: Program<'info, CbsProtocol>,
-
-    #[account(mut)]
-    pub auction_btc: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_msol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_usdc: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_eth: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_ust: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_srm: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_scnsol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_stsol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_usdt: Box<Account<'info, TokenAccount>>,
-
-    #[account(mut)]
-    pub cbs_btc: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_msol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_usdc: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_eth: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_ust: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_srm: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_scnsol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_stsol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_usdt: Box<Account<'info, TokenAccount>>,
-    
-    // Programs and Sysvars
-    pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
-    pub rent: Sysvar<'info, Rent>
-}
-
-
-#[derive(Accounts)]
-pub struct LiquidateLpTokenFromCBS<'info> {
-    #[account(mut)]
-    pub user_authority: Signer<'info>,
-    #[account(mut,
-        seeds = [PREFIX.as_ref()],
-        bump
-    )]
-    pub state_account: Box<Account<'info, AuctionStateAccount>>,
-    #[account(mut, has_one = state_account)]
-    pub config: Box<Account<'info, Config>>,
-    // UserAccount from CBS protocol
-    #[account(mut)]
-    pub liquidator: Box<Account<'info, UserAccount>>,
-    #[account(mut)]
-    pub cbs_account: Box<Account<'info, StateAccount>>,
-    pub cbs_program: Program<'info, CbsProtocol>,
-
-    #[account(mut)]
-    pub auction_btc: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_msol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_lpusd: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_lpsol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_lpbtc: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_lpeth: Box<Account<'info, TokenAccount>>,
-
-    #[account(mut)]
-    pub cbs_btc: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_msol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_lpusd: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_lpsol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_lpbtc: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_lpeth: Box<Account<'info, TokenAccount>>,
-    
-    // Programs and Sysvars
-    pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
-    pub rent: Sysvar<'info, Rent>
-}
-
 #[derive(Accounts)]
 pub struct LiquidateSwap<'info> {
     #[account(mut)]
@@ -1107,19 +1279,12 @@ pub struct LiquidateSwap<'info> {
     pub liquidator: Box<Account<'info, UserAccount>>,
     #[account(mut)]
     pub swap_account: Box<Account<'info, lpfinance_swap::StateAccount>>,
+    pub cbs_program: Program<'info, CbsProtocol>,
     pub swap_program: Program<'info, LpfinanceSwap>,
 
     #[account(mut)]
     pub lpusd_mint: Box<Account<'info,Mint>>,
 
-    #[account(mut)]
-    pub swap_lpusd: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub swap_lpsol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub swap_lpbtc: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub swap_lpeth: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub swap_btc: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
@@ -1138,15 +1303,6 @@ pub struct LiquidateSwap<'info> {
     pub swap_stsol: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub swap_usdt: Box<Account<'info, TokenAccount>>,
-
-    #[account(mut)]
-    pub auction_lpusd: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_lpsol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_lpbtc: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_lpeth: Box<Account<'info, TokenAccount>>,
 
     #[account(mut)]
     pub auction_btc: Box<Account<'info, TokenAccount>>,
@@ -1174,6 +1330,56 @@ pub struct LiquidateSwap<'info> {
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>
 }
+
+#[derive(Accounts)]
+pub struct LiquidateSecondSwap<'info> {
+    #[account(mut)]
+    pub user_authority: Signer<'info>,
+    #[account(mut,
+        seeds = [PREFIX.as_ref()],
+        bump
+    )]
+    pub state_account: Box<Account<'info, AuctionStateAccount>>,
+    #[account(mut, has_one = state_account)]
+    pub config: Box<Account<'info, Config>>,
+    // UserAccount from CBS protocol
+    #[account(mut)]
+    pub liquidator: Box<Account<'info, UserAccount>>,
+    #[account(mut)]
+    pub swap_account: Box<Account<'info, lpfinance_swap::StateAccount>>,
+    pub cbs_program: Program<'info, CbsProtocol>,
+    pub swap_program: Program<'info, LpfinanceSwap>,
+
+    #[account(mut)]
+    pub lpusd_mint: Box<Account<'info,Mint>>,
+
+    #[account(mut)]
+    pub swap_lpusd: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub swap_lpsol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub swap_lpbtc: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub swap_lpeth: Box<Account<'info, TokenAccount>>,
+
+    #[account(mut)]
+    pub auction_lpusd: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_lpsol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_lpbtc: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_lpeth: Box<Account<'info, TokenAccount>>,
+
+    #[account(mut, constraint = user_account.owner == liquidator.owner)]
+    pub user_account: Box<Account<'info, UserStateAccount>>,
+    // Programs and Sysvars
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>
+}
+
+
 
 #[derive(Accounts)]
 pub struct WithdrawLpUSD<'info> {
@@ -1207,6 +1413,12 @@ pub struct WithdrawLpUSD<'info> {
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>
+}
+
+#[derive(Accounts)]
+pub struct UpdateConfig<'info> {
+    #[account(mut)]
+    pub config: Box<Account<'info, Config>>,
 }
 
 #[account]
@@ -1262,10 +1474,16 @@ pub struct Config {
     pub pool_lpeth: Pubkey,
 
     pub total_deposited_lpusd: u64,
+    // Current auction pool's balance of LpUSD including epoch profits
     pub total_lpusd: u64,
+    // This percentage is for user withdraw rate
     pub total_percent: u64,
+    // Liquidation speed
     pub epoch_duration: u64,
+    // Profit percentage from last liquidation
+    // (Last_reward + Total_lpusd) / Total_lpusd
     pub last_epoch_percent: u64,
+    // Profit from last liquidation
     pub last_epoch_profit: u64
 }
 
@@ -1284,5 +1502,7 @@ pub enum ErrorCode {
     #[msg("Not Enough For LTV")]
     NotEnoughLTV,
     #[msg("Not Borrowed LpToken")]
-    NotBorrowedLpToken
+    NotBorrowedLpToken,
+    #[msg("PREV Liquidate Not Finished")]
+    FinishPrevLiquidate
 }

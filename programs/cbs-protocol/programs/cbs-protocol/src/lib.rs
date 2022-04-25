@@ -136,7 +136,7 @@ pub mod cbs_protocol {
     ) -> Result<()> {
         let user_account = &mut ctx.accounts.user_account;
         user_account.owner = ctx.accounts.user_authority.key();
-        user_account.bump = bump;
+        user_account.bump = 0;
         Ok(())
     }
 
@@ -168,6 +168,11 @@ pub mod cbs_protocol {
         token::transfer(cpi_ctx, amount)?;
 
         let user_account =&mut ctx.accounts.user_account;
+
+        if user_account.bump > 0 && user_account.bump < 6 {
+            return Err(ErrorCode::InLiquidating.into());
+        }
+        
         let config = &mut ctx.accounts.config;
 
         // == GET signer started == //
@@ -234,7 +239,7 @@ pub mod cbs_protocol {
             } else if ctx.accounts.user_collateral.mint == config.ust_mint {
                 // Only solend protocol support ust but apricot not
                 solend_higher = true;
-                user_account.lending_ust_amount += lending_amount  / ctx.accounts.solend_config.ust_rate;
+                user_account.lending_ust_amount += lending_amount * LENDING_DENOMINATOR / ctx.accounts.solend_config.ust_rate;
             } else if ctx.accounts.user_collateral.mint == config.srm_mint {
                 if ctx.accounts.solend_config.srm_rate > ctx.accounts.apricot_config.srm_rate {
                     solend_higher = true;
@@ -412,6 +417,11 @@ pub mod cbs_protocol {
         )?;
 
         let user_account = &mut ctx.accounts.user_account;
+
+        if user_account.bump > 0 && user_account.bump < 6 {
+            return Err(ErrorCode::InLiquidating.into());
+        }
+
         let config = &mut ctx.accounts.config;
 
         user_account.sol_amount = user_account.sol_amount + amount;
@@ -450,6 +460,11 @@ pub mod cbs_protocol {
         let mut total_price: u128 = 0;
         let mut total_borrowed_price: u128 = 0;
         let user_account = &mut ctx.accounts.user_account;
+
+        if user_account.bump > 0 && user_account.bump < 6 {
+            return Err(ErrorCode::InLiquidating.into());
+        }
+
         let config = &mut ctx.accounts.config;
 
         // BTC price        
@@ -586,13 +601,12 @@ pub mod cbs_protocol {
 
         let user_account = &mut ctx.accounts.user_account;
 
+
         let lpusd_amount = user_account.lpusd_amount;
         let lpsol_amount = user_account.lpsol_amount;
         let lpbtc_amount = user_account.lpbtc_amount;
         let lpeth_amount = user_account.lpeth_amount;
 
-        let btc_amount = user_account.btc_amount;
-        let msol_amount = user_account.msol_amount;
 
         let (program_authority, program_authority_bump) = 
             Pubkey::find_program_address(&[PREFIX.as_bytes()], ctx.program_id);
@@ -609,30 +623,6 @@ pub mod cbs_protocol {
 
         msg!("Lpusd amount: !!{:?}!!", lpusd_amount.to_string());
 
-
-        if msol_amount > 0 {
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.cbs_msol.to_account_info(),
-                to: ctx.accounts.auction_msol.to_account_info(),
-                authority: ctx.accounts.state_account.to_account_info()
-            };
-    
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-            token::transfer(cpi_ctx, msol_amount)?;
-        }
-
-        if btc_amount > 0 {
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.cbs_btc.to_account_info(),
-                to: ctx.accounts.auction_btc.to_account_info(),
-                authority: ctx.accounts.state_account.to_account_info()
-            };
-    
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-            token::transfer(cpi_ctx, btc_amount)?;
-        }
 
         if lpusd_amount > 0 {
             let cpi_accounts = Transfer {
@@ -682,6 +672,7 @@ pub mod cbs_protocol {
             token::transfer(cpi_ctx, lpeth_amount)?;
         }
 
+        user_account.bump = 3;
         // user_account.lpusd_amount = 0;
         // user_account.lpsol_amount = 0;
         // user_account.lpbtc_amount = 0;
@@ -698,9 +689,99 @@ pub mod cbs_protocol {
 
         let user_account = &mut ctx.accounts.user_account;
 
-        let usdc_amount = user_account.usdc_amount;
         let sol_amount = user_account.sol_amount;
+        let btc_amount = user_account.btc_amount;
+        let msol_amount = user_account.msol_amount;
+        let usdc_amount = user_account.usdc_amount;
         let eth_amount = user_account.eth_amount;
+
+        let (program_authority, program_authority_bump) = 
+            Pubkey::find_program_address(&[PREFIX.as_bytes()], ctx.program_id);
+        
+        if program_authority != ctx.accounts.state_account.to_account_info().key() {
+            return Err(ErrorCode::InvalidOwner.into());
+        }
+
+        let seeds = &[
+            PREFIX.as_bytes(),
+            &[program_authority_bump]
+        ];
+        let signer = &[&seeds[..]];
+
+
+        if msol_amount > 0 {
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.cbs_msol.to_account_info(),
+                to: ctx.accounts.auction_msol.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, msol_amount)?;
+        }
+
+        if btc_amount > 0 {
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.cbs_btc.to_account_info(),
+                to: ctx.accounts.auction_btc.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, btc_amount)?;
+        }
+
+        if usdc_amount > 0 {
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.cbs_usdc.to_account_info(),
+                to: ctx.accounts.auction_usdc.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, usdc_amount)?;
+        }
+
+        if eth_amount > 0 {
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.cbs_eth.to_account_info(),
+                to: ctx.accounts.auction_eth.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, eth_amount)?;
+        }
+
+        msg!("sol_amount started");
+
+        if sol_amount > 0 {
+            **ctx.accounts.state_account.to_account_info().try_borrow_mut_lamports()? -= sol_amount;
+            **ctx.accounts.auction_account.try_borrow_mut_lamports()? += sol_amount;
+        }
+        msg!("sol_amount ended");
+
+        user_account.bump = 1;
+        // user_account.sol_amount = 0;
+
+        // user_account.usdc_amount = 0;
+        // user_account.btc_amount = 0;
+        // user_account.msol_amount = 0;
+        // user_account.eth_amount = 0;      
+        Ok(())
+    }
+
+    pub fn liquidate_second_collateral(
+        ctx: Context<LiquidateSecondCollateral>
+    ) -> Result<()> {
+        msg!("liquidate_collateral started");
+
+        let user_account = &mut ctx.accounts.user_account;
+
         let ust_amount = user_account.ust_amount;
         let srm_amount = user_account.srm_amount;
         let scnsol_amount = user_account.scnsol_amount;
@@ -720,124 +801,87 @@ pub mod cbs_protocol {
         ];
         let signer = &[&seeds[..]];
 
-
-
-        // if usdc_amount > 0 {
-        //     let cpi_accounts = Transfer {
-        //         from: ctx.accounts.cbs_usdc.to_account_info(),
-        //         to: ctx.accounts.auction_usdc.to_account_info(),
-        //         authority: ctx.accounts.state_account.to_account_info()
-        //     };
+        if ust_amount > 0 {
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.cbs_ust.to_account_info(),
+                to: ctx.accounts.auction_ust.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
     
-        //     let cpi_program = ctx.accounts.token_program.to_account_info();
-        //     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        //     token::transfer(cpi_ctx, usdc_amount)?;
-        // }
-
-        // if eth_amount > 0 {
-        //     let cpi_accounts = Transfer {
-        //         from: ctx.accounts.cbs_eth.to_account_info(),
-        //         to: ctx.accounts.auction_eth.to_account_info(),
-        //         authority: ctx.accounts.state_account.to_account_info()
-        //     };
-    
-        //     let cpi_program = ctx.accounts.token_program.to_account_info();
-        //     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        //     token::transfer(cpi_ctx, eth_amount)?;
-        // }
-
-        // if ust_amount > 0 {
-        //     let cpi_accounts = Transfer {
-        //         from: ctx.accounts.cbs_ust.to_account_info(),
-        //         to: ctx.accounts.auction_ust.to_account_info(),
-        //         authority: ctx.accounts.state_account.to_account_info()
-        //     };
-    
-        //     let cpi_program = ctx.accounts.token_program.to_account_info();
-        //     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        //     token::transfer(cpi_ctx, ust_amount)?;
-        // }
-
-        // if srm_amount > 0 {
-        //     let cpi_accounts = Transfer {
-        //         from: ctx.accounts.cbs_srm.to_account_info(),
-        //         to: ctx.accounts.auction_srm.to_account_info(),
-        //         authority: ctx.accounts.state_account.to_account_info()
-        //     };
-    
-        //     let cpi_program = ctx.accounts.token_program.to_account_info();
-        //     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        //     token::transfer(cpi_ctx, srm_amount)?;
-        // }
-
-        // if scnsol_amount > 0 {
-        //     let cpi_accounts = Transfer {
-        //         from: ctx.accounts.cbs_scnsol.to_account_info(),
-        //         to: ctx.accounts.auction_scnsol.to_account_info(),
-        //         authority: ctx.accounts.state_account.to_account_info()
-        //     };
-    
-        //     let cpi_program = ctx.accounts.token_program.to_account_info();
-        //     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        //     token::transfer(cpi_ctx, scnsol_amount)?;
-        // }
-
-        // if stsol_amount > 0 {
-        //     let cpi_accounts = Transfer {
-        //         from: ctx.accounts.cbs_stsol.to_account_info(),
-        //         to: ctx.accounts.auction_stsol.to_account_info(),
-        //         authority: ctx.accounts.state_account.to_account_info()
-        //     };
-    
-        //     let cpi_program = ctx.accounts.token_program.to_account_info();
-        //     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        //     token::transfer(cpi_ctx, stsol_amount)?;
-        // }
-
-        // if usdt_amount > 0 {
-        //     let cpi_accounts = Transfer {
-        //         from: ctx.accounts.cbs_usdt.to_account_info(),
-        //         to: ctx.accounts.auction_usdt.to_account_info(),
-        //         authority: ctx.accounts.state_account.to_account_info()
-        //     };
-    
-        //     let cpi_program = ctx.accounts.token_program.to_account_info();
-        //     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        //     token::transfer(cpi_ctx, usdt_amount)?;
-        // }
-
-        msg!("sol_amount started");
-
-        if sol_amount > 0 {
-            **ctx.accounts.state_account.to_account_info().try_borrow_mut_lamports()? -= sol_amount;
-            **ctx.accounts.auction_account.try_borrow_mut_lamports()? += sol_amount;
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, ust_amount)?;
         }
-        msg!("sol_amount ended");
 
-        // user_account.sol_amount = 0;
-        // user_account.usdc_amount = 0;
-        // user_account.btc_amount = 0;
-        // user_account.msol_amount = 0;
-        // user_account.eth_amount = 0;
+        if srm_amount > 0 {
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.cbs_srm.to_account_info(),
+                to: ctx.accounts.auction_srm.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, srm_amount)?;
+        }
+
+        if scnsol_amount > 0 {
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.cbs_scnsol.to_account_info(),
+                to: ctx.accounts.auction_scnsol.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, scnsol_amount)?;
+        }
+
+        if stsol_amount > 0 {
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.cbs_stsol.to_account_info(),
+                to: ctx.accounts.auction_stsol.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, stsol_amount)?;
+        }
+
+        if usdt_amount > 0 {
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.cbs_usdt.to_account_info(),
+                to: ctx.accounts.auction_usdt.to_account_info(),
+                authority: ctx.accounts.state_account.to_account_info()
+            };
+    
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            token::transfer(cpi_ctx, usdt_amount)?;
+        }
+
+        user_account.bump = 2;
         // user_account.ust_amount = 0;
         // user_account.srm_amount = 0;
         // user_account.scnsol_amount = 0;
         // user_account.stsol_amount = 0;
         // user_account.usdt_amount = 0;
-
-        // user_account.borrowed_lpusd = 0;
-        // user_account.borrowed_lpsol = 0;
-        // user_account.borrowed_lpbtc = 0;
-        // user_account.borrowed_lpeth = 0;
         
         Ok(())
     }
+
 
     pub fn withdraw_sol(
         ctx: Context<WithdrawSOL>,
         amount: u64
     ) -> Result<()> {
         let user_account = &mut ctx.accounts.user_account;
+
+        if user_account.bump > 0 && user_account.bump < 6 {
+            return Err(ErrorCode::InLiquidating.into());
+        }
+
         let sol_amount = user_account.sol_amount as u128;
         let btc_amount = user_account.btc_amount as u128;
         let usdc_amount = user_account.usdc_amount as u128;
@@ -951,6 +995,11 @@ pub mod cbs_protocol {
         msg!("Withdraw Token");
 
         let user_account = &mut ctx.accounts.user_account;
+
+        if user_account.bump > 0 && user_account.bump < 6 {
+            return Err(ErrorCode::InLiquidating.into());
+        }
+
         let solend_config = &mut ctx.accounts.solend_config;
         let apricot_config = &mut ctx.accounts.apricot_config;
 
@@ -1258,7 +1307,7 @@ pub mod cbs_protocol {
                 }
             } 
             if solend_higher {
-                msg!("Witndraw from solend");
+                msg!("Withdraw from solend");
                 let cpi_program = ctx.accounts.solend_program.to_account_info();
                 let cpi_accounts = solend::cpi::accounts::WithdrawToken {
                     authority: ctx.accounts.state_account.to_account_info(),
@@ -1276,7 +1325,7 @@ pub mod cbs_protocol {
     
                 solend::cpi::withdraw_token(cpi_ctx, require_lending_amount)?;
             } else {
-                msg!("Witndraw from apricot");
+                msg!("Withdraw from apricot");
                 let cpi_program = ctx.accounts.apricot_program.to_account_info();
                 let cpi_accounts = apricot::cpi::accounts::WithdrawToken {
                     authority: ctx.accounts.state_account.to_account_info(),
@@ -1320,6 +1369,11 @@ pub mod cbs_protocol {
         }
 
         let user_account =&mut ctx.accounts.user_account;
+
+        if user_account.bump > 0 && user_account.bump < 6 {
+            return Err(ErrorCode::InLiquidating.into());
+        }
+
         let config = &mut ctx.accounts.config;
 
 
@@ -1366,19 +1420,30 @@ pub mod cbs_protocol {
             token::burn(cpi_ctx, amount)?;
         }
 
-        if ctx.accounts.user_dest.mint == config.usdc_mint || ctx.accounts.user_dest.mint == config.lpusd_mint{
-            
+        if ctx.accounts.user_dest.mint == config.usdc_mint || ctx.accounts.user_dest.mint == config.lpusd_mint{  
+            if user_account.borrowed_lpusd < amount || config.total_borrowed_lpusd < amount {
+                return Err(ErrorCode::RepayFinished.into());
+            }
+
             user_account.borrowed_lpusd = user_account.borrowed_lpusd - amount;
             config.total_borrowed_lpusd = config.total_borrowed_lpusd - amount;  
         } else if ctx.accounts.user_dest.mint == config.lpsol_mint {
-
+            if user_account.borrowed_lpsol < amount || config.total_borrowed_lpsol < amount {
+                return Err(ErrorCode::RepayFinished.into());
+            }
             user_account.borrowed_lpsol = user_account.borrowed_lpsol - amount;
             config.total_borrowed_lpsol = config.total_borrowed_lpsol - amount;            
         } else if ctx.accounts.user_dest.mint == config.lpbtc_mint || ctx.accounts.user_dest.mint == config.btc_mint{
+            if user_account.borrowed_lpbtc < amount || config.total_borrowed_lpbtc < amount {
+                return Err(ErrorCode::RepayFinished.into());
+            }
 
             user_account.borrowed_lpbtc = user_account.borrowed_lpbtc - amount;
             config.total_borrowed_lpbtc = config.total_borrowed_lpbtc - amount;            
         } else if ctx.accounts.user_dest.mint == config.lpeth_mint || ctx.accounts.user_dest.mint == config.eth_mint{
+            if user_account.borrowed_lpeth < amount || config.total_borrowed_lpeth < amount {
+                return Err(ErrorCode::RepayFinished.into());
+            }
 
             user_account.borrowed_lpeth = user_account.borrowed_lpeth - amount;
             config.total_borrowed_lpeth = config.total_borrowed_lpeth - amount;            
@@ -1413,10 +1478,75 @@ pub mod cbs_protocol {
         )?;
 
         let user_account = &mut ctx.accounts.user_account;
+
+        if user_account.bump > 0 && user_account.bump < 6 {
+            return Err(ErrorCode::InLiquidating.into());
+        }
+
         let config = &mut ctx.accounts.config;
+
+        if user_account.borrowed_lpsol < amount || config.total_borrowed_lpsol < amount {
+            return Err(ErrorCode::RepayFinished.into());
+        }
 
         user_account.borrowed_lpsol = user_account.borrowed_lpsol - amount;
         config.total_borrowed_lpsol = config.total_borrowed_lpsol - amount;
+
+        Ok(())
+    }
+
+    pub fn update_user_account(
+        ctx: Context<UpdateUserAccount>,
+        step: u8
+    ) -> Result<()> {
+        let user_account = &mut ctx.accounts.user_account;
+        user_account.bump = step;
+
+        // Need to reset everything
+        if step == 10 {
+            user_account.bump = 0;
+            user_account.lpusd_amount = 0;
+            user_account.lpsol_amount = 0;
+            user_account.lpbtc_amount = 0;
+            user_account.lpeth_amount = 0;
+
+            user_account.sol_amount = 0;
+            user_account.usdc_amount = 0;
+            user_account.btc_amount = 0;
+            user_account.msol_amount = 0;
+            user_account.eth_amount = 0;
+            user_account.ust_amount = 0;
+            user_account.srm_amount = 0;
+            user_account.scnsol_amount = 0;
+            user_account.stsol_amount = 0;
+            user_account.usdt_amount = 0;
+
+            user_account.borrowed_lpusd = 0;
+            user_account.borrowed_lpsol = 0;
+            user_account.borrowed_lpbtc = 0;
+            user_account.borrowed_lpeth = 0;
+
+
+            user_account.lending_btc_amount = 0;
+            user_account.lending_sol_amount = 0;
+            user_account.lending_usdc_amount = 0;
+            user_account.lending_eth_amount = 0;
+            user_account.lending_msol_amount = 0;
+            user_account.lending_ust_amount = 0;
+            user_account.lending_srm_amount = 0;
+            user_account.lending_scnsol_amount = 0;
+            user_account.lending_stsol_amount = 0;
+            user_account.lending_usdt_amount = 0;
+        }
+        Ok(())
+    }
+
+    pub fn fix_user_account(
+        ctx: Context<UpdateUserAccount>,
+        amount: u64
+    ) -> Result<()> {
+        let user_account = &mut ctx.accounts.user_account;
+        user_account.borrowed_lpusd = amount;
 
         Ok(())
     }
@@ -1972,9 +2102,35 @@ pub struct LiquidateCollateral<'info> {
     pub auction_account: AccountInfo<'info>,
 
     #[account(mut)]
+    pub auction_msol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub auction_btc: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
     pub auction_usdc: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub auction_eth: Box<Account<'info, TokenAccount>>,
+
+    #[account(mut)]
+    pub cbs_msol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_btc: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_usdc: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_eth: Box<Account<'info, TokenAccount>>,
+    // Programs and Sysvars
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>
+}
+
+#[derive(Accounts)]
+pub struct LiquidateSecondCollateral<'info> {
+    #[account(mut)]
+    pub user_account: Box<Account<'info, UserAccount>>,
+    #[account(mut)]
+    pub state_account: Box<Account<'info, StateAccount>>,
+
     #[account(mut)]
     pub auction_ust: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
@@ -1986,26 +2142,21 @@ pub struct LiquidateCollateral<'info> {
     #[account(mut)]
     pub auction_usdt: Box<Account<'info, TokenAccount>>,
 
-    // #[account(mut)]
-    // pub cbs_usdc: Box<Account<'info, TokenAccount>>,
-    // #[account(mut)]
-    // pub cbs_eth: Box<Account<'info, TokenAccount>>,
-    // #[account(mut)]
-    // pub cbs_ust: Box<Account<'info, TokenAccount>>,
-    // #[account(mut)]
-    // pub cbs_srm: Box<Account<'info, TokenAccount>>,
-    // #[account(mut)]
-    // pub cbs_scnsol: Box<Account<'info, TokenAccount>>,
-    // #[account(mut)]
-    // pub cbs_stsol: Box<Account<'info, TokenAccount>>,
-    // #[account(mut)]
-    // pub cbs_usdt: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_ust: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_srm: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_scnsol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_stsol: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub cbs_usdt: Box<Account<'info, TokenAccount>>,
     // Programs and Sysvars
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>
 }
-
 
 #[derive(Accounts)]
 pub struct LiquidateLpTokenCollateral<'info> {
@@ -2015,10 +2166,6 @@ pub struct LiquidateLpTokenCollateral<'info> {
     pub state_account: Box<Account<'info, StateAccount>>,
 
     #[account(mut)]
-    pub auction_msol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub auction_btc: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
     pub auction_lpusd: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub auction_lpsol: Box<Account<'info, TokenAccount>>,
@@ -2027,10 +2174,6 @@ pub struct LiquidateLpTokenCollateral<'info> {
     #[account(mut)]
     pub auction_lpeth: Box<Account<'info, TokenAccount>>,
 
-    #[account(mut)]
-    pub cbs_msol: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub cbs_btc: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub cbs_lpusd: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
@@ -2044,6 +2187,13 @@ pub struct LiquidateLpTokenCollateral<'info> {
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>
+}
+
+
+#[derive(Accounts)]
+pub struct UpdateUserAccount<'info> {
+    #[account(mut)]
+    pub user_account: Box<Account<'info, UserAccount>>
 }
 
 #[account]
@@ -2233,5 +2383,11 @@ pub enum ErrorCode {
     #[msg("Invalid Token")]
     InvalidToken,
     #[msg("Invalid Owner")]
-    InvalidOwner
+    InvalidOwner,
+    #[msg("In Liquidating")]
+    ProgressInLiquidate,
+    #[msg("Repay finished for the selected token")]
+    RepayFinished,
+    #[msg("Progress in Liquidating")]
+    InLiquidating
 }
