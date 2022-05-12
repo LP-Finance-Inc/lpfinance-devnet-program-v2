@@ -5,6 +5,7 @@
 const anchor = require("@project-serum/anchor");
 const { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, Token } = require('@solana/spl-token')
 const { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Keypair } = anchor.web3;
+const { cbsAddrs } = require('./wallets');
 
 const idl = require("../target/idl/cbs_protocol.json");
 const programID = idl.metadata.address;
@@ -49,21 +50,24 @@ module.exports = async function (provider) {
   // Add your deploy script here
   const program = new anchor.Program(idl, programID);
 
-  try {
-    const authority = new PublicKey("BVNzJ86EJcsPwqNX98xMSLkZWQWuCcaPKTDhKoK22bne");
-    const [userAccount, userAccountBump] = await PublicKey.findProgramAddress(
-      [Buffer.from(PREFIX), Buffer.from(authority.toBuffer())],
-      program.programId
-    );
-
-    await program.rpc.fixUserAccount( new anchor.BN("0"), {
-      accounts: {
-        userAccount
+    for (const idx in cbsAddrs) {
+      try {
+        console.log(cbsAddrs[idx])
+        const authority = new PublicKey(cbsAddrs[idx]);
+        const [userAccount, userAccountBump] = await PublicKey.findProgramAddress(
+          [Buffer.from(PREFIX), Buffer.from(authority.toBuffer())],
+          program.programId
+        );
+    
+        await program.rpc.fixUserAccount( new anchor.BN("0"), {
+          accounts: {
+            userAccount
+          }
+        });
+      } catch (err) {
+        console.log(err)
       }
-    });
-  } catch (err) {
-    console.log(err)
-  }
+    }
 }
 /*
 module.exports = async function (provider) {
