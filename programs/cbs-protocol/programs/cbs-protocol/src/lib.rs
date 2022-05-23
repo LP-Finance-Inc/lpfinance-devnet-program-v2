@@ -802,6 +802,7 @@ pub mod cbs_protocol {
         let signer = &[&seeds[..]];
 
         if ust_amount > 0 {
+            msg!("liquidate_collateral ust_amount");
             let cpi_accounts = Transfer {
                 from: ctx.accounts.cbs_ust.to_account_info(),
                 to: ctx.accounts.auction_ust.to_account_info(),
@@ -814,6 +815,7 @@ pub mod cbs_protocol {
         }
 
         if srm_amount > 0 {
+            msg!("liquidate_collateral srm_amount");
             let cpi_accounts = Transfer {
                 from: ctx.accounts.cbs_srm.to_account_info(),
                 to: ctx.accounts.auction_srm.to_account_info(),
@@ -826,6 +828,7 @@ pub mod cbs_protocol {
         }
 
         if scnsol_amount > 0 {
+            msg!("liquidate_collateral scnsol_amount");
             let cpi_accounts = Transfer {
                 from: ctx.accounts.cbs_scnsol.to_account_info(),
                 to: ctx.accounts.auction_scnsol.to_account_info(),
@@ -838,6 +841,7 @@ pub mod cbs_protocol {
         }
 
         if stsol_amount > 0 {
+            msg!("liquidate_collateral stsol_amount");
             let cpi_accounts = Transfer {
                 from: ctx.accounts.cbs_stsol.to_account_info(),
                 to: ctx.accounts.auction_stsol.to_account_info(),
@@ -850,6 +854,7 @@ pub mod cbs_protocol {
         }
 
         if usdt_amount > 0 {
+            msg!("liquidate_collateral usdt_amount");
             let cpi_accounts = Transfer {
                 from: ctx.accounts.cbs_usdt.to_account_info(),
                 to: ctx.accounts.auction_usdt.to_account_info(),

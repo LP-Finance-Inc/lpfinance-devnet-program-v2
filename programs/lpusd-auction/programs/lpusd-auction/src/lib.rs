@@ -207,9 +207,9 @@ pub mod lpusd_auction {
 
             auction_ust: ctx.accounts.auction_ust.to_account_info(),
             auction_srm: ctx.accounts.auction_srm.to_account_info(),
-            auction_scnsol: ctx.accounts.auction_srm.to_account_info(),
-            auction_stsol: ctx.accounts.auction_srm.to_account_info(),
-            auction_usdt: ctx.accounts.auction_srm.to_account_info(),
+            auction_scnsol: ctx.accounts.auction_scnsol.to_account_info(),
+            auction_stsol: ctx.accounts.auction_stsol.to_account_info(),
+            auction_usdt: ctx.accounts.auction_usdt.to_account_info(),
 
             cbs_ust: ctx.accounts.cbs_ust.to_account_info(),
             cbs_srm: ctx.accounts.cbs_srm.to_account_info(),
